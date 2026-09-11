@@ -5,14 +5,14 @@ import pandas as pd
 import xarray as xr
 from scipy.linalg import diagsvd
 
-from lidar_wind_toolbox.signal_calc import in_db, CN_est
+from lidar_wind_toolbox.signal_calc import CN_est, in_db
 from lidar_wind_toolbox.wind_calc import (
-    find_num_dir,
+    build_Amatrix,
     calc_sigma_single,
     consensus,
-    build_Amatrix,
-    uvw_2_spd,
+    find_num_dir,
     uvw_2_dir,
+    uvw_2_spd,
 )
 
 
@@ -336,7 +336,7 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
     ## add configuration used to create the file
     configuration = """"""
     for dd in confDict:
-        if not dd in ["PROC_PATH", "NC_L1_PATH", "NC_L2_PATH", "NC_L2_QL_PATH"]:
+        if dd not in ["PROC_PATH", "NC_L1_PATH", "NC_L2_PATH", "NC_L2_QL_PATH"]:
             configuration += dd + "=" + confDict[dd] + "\n"
     if "BLINDEZONE_GATES" in confDict:
         NN = int(confDict["BLINDEZONE_GATES"])
@@ -981,7 +981,7 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
     ## add configuration used to create the file
     configuration = """"""
     for dd in confDict:
-        if not dd in ["PROC_PATH", "NC_L1_PATH", "NC_L2_PATH", "NC_L2_QL_PATH"]:
+        if dd not in ["PROC_PATH", "NC_L1_PATH", "NC_L2_PATH", "NC_L2_QL_PATH"]:
             configuration += dd + "=" + confDict[dd] + "\n"
     if "BLINDEZONE_GATES" in confDict:
         NN = int(confDict["BLINDEZONE_GATES"])

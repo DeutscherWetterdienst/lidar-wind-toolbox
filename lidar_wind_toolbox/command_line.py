@@ -6,13 +6,14 @@ by Markus Kayser. Non-commercial use only.
 """
 
 import argparse
-from lidar_wind_toolbox.hpl2netCDF_client import hpl2netCDFClient
-import textwrap
-import sys
 import datetime
+import sys
+import textwrap
 
 # from version import __version__
 from pandas.plotting import register_matplotlib_converters
+
+from lidar_wind_toolbox.hpl2netCDF_client import hpl2netCDFClient
 
 register_matplotlib_converters()
 

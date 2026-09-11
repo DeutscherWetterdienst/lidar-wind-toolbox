@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import datetime
+import re
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import xarray as xr
-import re
-import datetime
-import os
-
-from pathlib import Path
 
 import lidar_wind_toolbox as proc
 
@@ -68,7 +67,7 @@ class hpl_files(object):
             if "TP".lower() in confDict["SCAN_TYPE"].lower():
                 mylist = list(filter(lambda k: "TP" in k.stem, mylist))
             else:
-                mylist = list(filter(lambda k: not "TP" in k.stem, mylist))
+                mylist = list(filter(lambda k: "TP" not in k.stem, mylist))
 
         return hpl_files.filelist_to_hpl_files(mylist, confDict["SYSTEM"])
 

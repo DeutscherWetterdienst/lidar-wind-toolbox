@@ -6,35 +6,35 @@ DWD-Pilotstation software source code file
 by Markus Kayser. Non-commercial use only.
 """
 
-import numpy as np
-import pandas as pd
-import xarray as xr
 import datetime
+from pathlib import Path
+
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
+import matplotlib.dates as mdates
 
 # import packackes used for plotting quicklooks
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import matplotlib.colors as mcolors
-import matplotlib.cm as cm
-
+import numpy as np
+import pandas as pd
+import xarray as xr
 from matplotlib.ticker import MultipleLocator
-from pathlib import Path
+from scipy.linalg import diagsvd
+
+from lidar_wind_toolbox.config.config import config
 
 # import
 from lidar_wind_toolbox.hpl_files.hpl_files import hpl_files
-from lidar_wind_toolbox.config.config import config
-from scipy.linalg import diagsvd
-
 from lidar_wind_toolbox.main_proc import process_dataset, write_netcdf
 from lidar_wind_toolbox.plot_helpers import ql_helper
-from lidar_wind_toolbox.signal_calc import in_db, CN_est
+from lidar_wind_toolbox.signal_calc import CN_est, in_db
 from lidar_wind_toolbox.wind_calc import (
     build_Amatrix,
-    uvw_2_spd,
-    uvw_2_dir,
     calc_sigma_single,
     consensus,
     find_num_dir,
+    uvw_2_dir,
+    uvw_2_spd,
 )
 
 
@@ -1101,7 +1101,7 @@ class hpl2netCDFClient(object):
         ## add configuration used to create the file
         configuration = """"""
         for dd in confDict:
-            if not dd in ["PROC_PATH", "NC_L1_PATH", "NC_L2_PATH", "NC_L2_QL_PATH"]:
+            if dd not in ["PROC_PATH", "NC_L1_PATH", "NC_L2_PATH", "NC_L2_QL_PATH"]:
                 configuration += dd + "=" + confDict[dd] + "\n"
         if "BLINDZONE_GATES" in confDict:
             NN = int(confDict["BLINDZONE_GATES"])
