@@ -21,14 +21,14 @@ from matplotlib.ticker import MultipleLocator
 from pathlib import Path
 
 # import 
-from hpl2netCDF_client.hpl_files.hpl_files import hpl_files
-from hpl2netCDF_client.config.config import config
+from lidar_wind_toolbox.hpl_files.hpl_files import hpl_files
+from lidar_wind_toolbox.config.config import config
 from scipy.linalg import diagsvd
 
-from hpl2netCDF_client.main_proc import process_dataset, write_netcdf
-from hpl2netCDF_client.plot_helpers import ql_helper
-from hpl2netCDF_client.signal_calc import in_db, CN_est
-from hpl2netCDF_client.wind_calc import build_Amatrix, uvw_2_spd, uvw_2_dir, calc_sigma_single, consensus, find_num_dir
+from lidar_wind_toolbox.main_proc import process_dataset, write_netcdf
+from lidar_wind_toolbox.plot_helpers import ql_helper
+from lidar_wind_toolbox.signal_calc import in_db, CN_est
+from lidar_wind_toolbox.wind_calc import build_Amatrix, uvw_2_spd, uvw_2_dir, calc_sigma_single, consensus, find_num_dir
 
 
 ### functions used for plotting

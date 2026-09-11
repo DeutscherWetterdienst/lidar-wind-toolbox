@@ -5,8 +5,8 @@ import pandas as pd
 import xarray as xr
 from scipy.linalg import diagsvd
 
-from hpl2netCDF_client.signal_calc import in_db, CN_est
-from hpl2netCDF_client.wind_calc import find_num_dir, calc_sigma_single, consensus, build_Amatrix, uvw_2_spd, uvw_2_dir
+from lidar_wind_toolbox.signal_calc import in_db, CN_est
+from lidar_wind_toolbox.wind_calc import find_num_dir, calc_sigma_single, consensus, build_Amatrix, uvw_2_spd, uvw_2_dir
 
 
 def lvl2vad_standard(ds_tmp, date_chosen, confDict):
@@ -683,8 +683,8 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
                 SIGMA_CNS = np.vstack([SIGMA_CNS, WR_SPEC])
                 azi_mean = np.hstack([azi_mean, 0])
                 ele_cns = np.hstack([ele_cns, 90])
-            #         WR_filt = hp.hpl2netCDF_client.filter_by_snr(WR, CNR_WR, -18).filled(np.nan)
-            #         SPEC_filt = hp.hpl2netCDF_client.filter_by_snr(WR, CNR_WR, -18).filled(np.nan)
+            #         WR_filt = hp.lidar_wind_toolbox.filter_by_snr(WR, CNR_WR, -18).filled(np.nan)
+            #         SPEC_filt = hp.lidar_wind_toolbox.filter_by_snr(WR, CNR_WR, -18).filled(np.nan)
             #         VR_CNSmax = np.vstack([VR_CNSmax, WR_filt])
             #         SIGMA_CNS = np.vstack([SIGMA_CNS, SPEC_filt])
             #         azi_mean = np.hstack([azi_mean, np.zeros(WR_filt.shape[0])])

@@ -1,2 +1,0 @@
-import hpl2netCDF_client.hpl2netCDF_client
-from hpl2netCDF_client.config import config

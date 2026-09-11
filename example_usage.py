@@ -1,7 +1,7 @@
 import datetime
 import os
 
-from hpl2netCDF_client.hpl2netCDF_client import hpl2netCDFClient
+from lidar_wind_toolbox.hpl2netCDF_client import hpl2netCDFClient
 
 if __name__ == '__main__':
 

@@ -5,7 +5,7 @@ DWD-Pilotstation software source code file
 by Markus Kayser. Non-commercial use only.
 '''
 import argparse
-from hpl2netCDF_client.hpl2netCDF_client import hpl2netCDFClient
+from lidar_wind_toolbox.hpl2netCDF_client import hpl2netCDFClient
 import textwrap
 import sys
 import datetime

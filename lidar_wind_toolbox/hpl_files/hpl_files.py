@@ -10,7 +10,7 @@ import os
 
 from pathlib import Path
 
-import hpl2netCDF_client as proc
+import lidar_wind_toolbox as proc
 
 class hpl_files(object):
     name= []
