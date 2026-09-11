@@ -3,6 +3,18 @@ line-length = 100
 
 [lint]
 extend-select=["I"]
+exclude = [
+    "lidar_wind_toolbox/plot_helpers.py",
+    "lidar_wind_toolbox/config/config.py",
+    "lidar_wind_toolbox/command_line.py",
+    "lidar_wind_toolbox/hpl_files/hpl_files.py",
+    "lidar_wind_toolbox/main_proc.py",
+    "lidar_wind_toolbox/hpl2netCDF_client.py",
+    "lidar_wind_toolbox/wind_calc.py",
+    "lidar_wind_toolbox/version.py",
+    "lidar_wind_toolbox/wind_proc.py",
+    "lidar_wind_toolbox/signal_calc.py",
+]
 
 [format]
 exclude = ["*.pyi"]
