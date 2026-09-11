@@ -323,8 +323,8 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
     for dd in confDict:
         if dd not in ["PROC_PATH", "NC_L1_PATH", "NC_L2_PATH", "NC_L2_QL_PATH"]:
             configuration += dd + "=" + confDict[dd] + "\n"
-    if "BLINDEZONE_GATES" in confDict:
-        NN = int(confDict["BLINDEZONE_GATES"])
+    if "BLINDZONE_GATES" in confDict:
+        NN = int(confDict["BLINDZONE_GATES"])
     else:
         NN = 0
 
@@ -941,8 +941,8 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
     for dd in confDict:
         if dd not in ["PROC_PATH", "NC_L1_PATH", "NC_L2_PATH", "NC_L2_QL_PATH"]:
             configuration += dd + "=" + confDict[dd] + "\n"
-    if "BLINDEZONE_GATES" in confDict:
-        NN = int(confDict["BLINDEZONE_GATES"])
+    if "BLINDZONE_GATES" in confDict:
+        NN = int(confDict["BLINDZONE_GATES"])
     else:
         NN = 0
 
