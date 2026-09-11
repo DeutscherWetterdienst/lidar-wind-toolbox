@@ -19,6 +19,7 @@ dev = [
     "mypy>=1.19.1",
     "netcdf4>=1.7.4",
     "pre-commit>=4.5.1",
+    "pytest>=9.1.1",
     "ruff==0.15.4",
 ]
 
