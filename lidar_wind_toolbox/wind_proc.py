@@ -114,7 +114,6 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
     # don't forget to check for empty calc_idx
     time_valid = [ii for ii, x in enumerate(calc_idx) if len(x[0]) != 0]
 
-    # UVW = np.where(np.zeros((len(calc_idx),n_gates,3)),np.nan,np.nan)
     UVW = np.full((len(calc_idx), n_gates, 3), np.nan)
     UVWunc = np.full((len(calc_idx), n_gates, 3), np.nan)
     SPEED = np.full((len(calc_idx), n_gates), np.nan)
@@ -133,8 +132,6 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
         # read lidar parameters
         n_rays = int(confDict["NUMBER_OF_DIRECTIONS"])
         indicator, n_rays, azi_mean, azi_edges = find_num_dir(n_rays, calc_idx, azimuth, kk)
-        # azimuth[azimuth>azi_edges[0]]= azimuth[azimuth>azi_edges[0]]-360
-        # azi_edges[0]= azi_edges[0]-360
         r_phi = 360 / (n_rays) / 2
         if ~indicator:
             print("some issue with the data", n_rays, len(azi_mean), time_start[kk])
@@ -148,14 +145,11 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
 
             VR_CNSmax = np.full((len(azi_mean), n_gates), np.nan)
             VR_CNSunc = np.full((len(azi_mean), n_gates), np.nan)
-            # SNR_CNS= np.full((len(azi_mean),n_gates), np.nan)
             BETA_CNS = np.full((len(azi_mean), n_gates), np.nan)
             SIGMA_CNS = np.full((len(azi_mean), n_gates), np.nan)
-            # azi_CNS= np.full((len(azi_mean),n_gates), np.nan)
             ele_cns = np.full((len(azi_mean),), np.nan)
 
             for ii, azi_i in enumerate(azi_mean):
-                # azi_idx = (azi>=azi_edges[ii])*(azi<azi_edges[ii+1])
                 azi_idx = (
                     np.mod(360 - np.mod(np.mod(azi - azi_i, 360) - r_phi, 360), 360) <= 2 * r_phi
                 )
@@ -163,7 +157,6 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
                 ## calculate consensus average
                 VR_CNSmax[ii, :], idx_tmp, VR_CNSunc[ii, :] = consensus(
                     VR[azi_idx],
-                    #   , np.ones(SNR[azi_idx].shape)
                     SNR[azi_idx],
                     BETA[azi_idx],
                     int(confDict["CNS_RANGE"]),
@@ -198,16 +191,14 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
 
             #     # This approach avoids looping over all range gates, but the method is not as stable
             n_good_kk = (~np.isnan(VR_CNSmax)).sum(axis=0)
-            # NVRAD[kk, :] = (~np.isnan(VR_CNSmax)).sum(axis=0)
             n_good[kk, :] = n_good_kk
             V_r = np.ma.masked_where(
-                (np.isnan(VR_CNSmax)),  # & (np.tile(n_good_kk, (azi_mean.shape[0], 1)) < 4)
+                (np.isnan(VR_CNSmax)),
                 VR_CNSmax,
             ).T[..., None]
             mask_V_in = (np.isnan(VR_CNSmax)) | (np.tile(n_good_kk, (azi_mean.shape[0], 1)) < 4)
             V_in = np.ma.masked_where(mask_V_in, VR_CNSmax)
             A = build_Amatrix(azi_mean, ele_cns)
-            # A[abs(A)<1e-3] = 0
             A_r = np.tile(A, (VR_CNSmax.shape[1], 1, 1))
             A_r_MP = np.tile(np.linalg.pinv(A), (VR_CNSmax.shape[1], 1, 1))
             A_r_MP_T = np.einsum("...ij->...ji", A_r_MP)
@@ -256,21 +247,15 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
             ss_e = ((V_r - V_r_est) ** 2).sum(axis=1)
             ss_t = ((V_r - V_r.mean(axis=1)[:, None, :]) ** 2).sum(axis=1)
             R2[kk, :] = np.squeeze(1 - ss_e / ss_t)
-            # R2[kk, :] = 1 - (1 - R2[kk, :]) * (np.sum(~np.isnan(VR_CNSmax.T), axis=1)-1)/(np.sum(~np.isnan(VR_CNSmax.T), axis=1)-2)
-            # sqe = ((V_r_est-V_r_est.mean(axis=1)[:, None, :])**2).sum(axis = 1)
-            # sqt = ((V_r-V_r.mean(axis=1)[:, None, :])**2).sum(axis = 1)
-            # R2[kk, :] = np.squeeze(sqe/sqt)
             R2[kk, np.sum(~np.isnan(VR_CNSmax.T), axis=1) < 4] = np.nan
 
             mask_A = np.tile(mask_V_in.T[..., None], (1, 1, 3))
-            # A_r_m = np.ma.masked_where( mask_A, A_r)
             A_r_T = np.einsum("...ij->...ji", A_r)
             Spp = np.apply_along_axis(
                 np.diag, 1, 1 / np.sqrt(np.einsum("...ii->...i", A_r_T @ A_r))
             )
             Z = np.ma.masked_where(mask_A, A_r @ Spp)
             CN[kk, :] = np.squeeze(np.array([CN_est(X) for X in Z]))
-            # CN[kk, :] = np.array([CN_est(X) for X in A_r_m])
             CN[kk, np.sum(~np.isnan(VR_CNSmax.T), axis=1) < 4] = np.nan
 
             SPEED[kk, :], SPEEDunc[kk, :] = np.vstack(
@@ -301,7 +286,7 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
     errv = np.copy(UVWunc[:, :, 1])
     errw = np.copy(UVWunc[:, :, 2])
 
-    qspeed = ~np.isnan(SPEED)  # *(abs(w)<.3*np.sqrt(np.nanmedian(u)**2+np.nanmedian(v)**2))
+    qspeed = ~np.isnan(SPEED)
     r2[np.isnan(R2)] = -999.0
     qr2 = r2 >= float(confDict["R2_THRESHOLD"])
     cn[np.isnan(CN)] = +999.0
@@ -577,11 +562,6 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
             ),
             "height_bnds": (
                 ["height", "nv"],
-                # ,np.array([(np.arange(0,n_gates)
-                #             * float(confDict['RANGE_GATE_LENGTH'])*np.sin(np.nanmedian(elevation)*np.pi/180))
-                #             ,((np.arange(0,n_gates) + 1.)
-                #             * float(confDict['RANGE_GATE_LENGTH'])*np.sin(np.nanmedian(elevation)*np.pi/180))
-                #             ]).T
                 np.float32(height_bnds[NN:, :]),
                 {"units": "m"},
             ),
@@ -607,11 +587,6 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
             ),
             "hor_width": (
                 ["height"],
-                # ,np.array([(np.arange(0,n_gates)
-                #             * float(confDict['RANGE_GATE_LENGTH'])*np.sin(np.nanmedian(elevation)*np.pi/180))
-                #             ,((np.arange(0,n_gates) + 1.)
-                #             * float(confDict['RANGE_GATE_LENGTH'])*np.sin(np.nanmedian(elevation)*np.pi/180))
-                #             ]).T
                 np.float32(width[NN:]),
                 {
                     "units": "m",
@@ -624,8 +599,6 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
         coords={
             "height": (
                 ["height"],
-                # ,((np.arange(0,n_gates)+.5)*int(confDict['RANGE_GATE_LENGTH'])
-                # *np.sin(np.nanmedian(elevation)*np.pi/180))
                 np.float32(height[NN:]),
                 {
                     "units": "m",
@@ -755,17 +728,12 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
     n_good = np.full((len(calc_idx), n_gates), np.nan)
     CNR_tot = np.full((len(calc_idx), n_gates), np.nan)
     BETA_tot = np.full((len(calc_idx), n_gates), np.nan)
-    # SIGMA_tot = np.full((len(calc_idx), n_gates), np.nan)
-
-    # time_ds = time[np.where(ds)]
 
     for kk in time_valid:
         print("processed " + str(np.floor(100 * kk / (len(calc_idx) - 1))) + " %")
         # read lidar parameters
         n_rays = int(confDict["NUMBER_OF_DIRECTIONS"])
         indicator, n_rays, azi_mean, azi_edges = find_num_dir(n_rays, calc_idx, azimuth, kk)
-        # azimuth[azimuth>azi_edges[0]]= azimuth[azimuth>azi_edges[0]]-360
-        # azi_edges[0]= azi_edges[0]-360
         r_phi = 360 / (n_rays) / 2
         if ~indicator:
             print("some issue with the data", n_rays, len(azi_mean), time_start[kk])
@@ -779,8 +747,6 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
                 BETA_WR = dv[calc_idx[kk]][elevation[calc_idx[kk]] > 89]
                 SPEC_WR = delv[calc_idx[kk]][elevation[calc_idx[kk]] > 89]
                 # estimate consensus of vertical velocity data
-                # w_cns, idx_tmp, tmp_tmp = consensus( WR, np.ones(WR.shape), np.ones(WR.shape), .1, 100, 0, B)
-                # WR_SPEC = np.ma.masked_where(~idx_tmp, SPEC_WR).mean(axis=0).filled(np.nan)
                 w_cns, idx_tmp, tmp_tmp = consensus(
                     WR, np.ones(WR.shape), np.ones(WR.shape), 2, 30, 0, B
                 )
@@ -801,7 +767,6 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
             ele_cns = np.full((len(azi_mean),), np.nan)
 
             for ii, azi_i in enumerate(azi_mean):
-                # azi_idx = (azi>=azi_edges[ii])*(azi<azi_edges[ii+1])
                 azi_idx = (
                     np.mod(360 - np.mod(np.mod(azi - azi_i, 360) - r_phi, 360), 360) <= 2 * r_phi
                 )
@@ -819,7 +784,7 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
                 CNR_CNS[ii, :] = (
                     np.ma.masked_where(~idx_tmp, CNR[azi_idx]).mean(axis=0).filled(np.nan)
                 )
-                # SIGMA_CNS[ii, :] = np.ma.masked_where(~idx_tmp, SPEC[azi_idx]).mean(axis=0).filled(np.nan)
+
                 SIGMA_CNS[ii, :] = VR_CNSunc[ii, :]
             if np.any(elevation[calc_idx[kk]] > 89):
                 #         Add vertical Stares to azimuth consensus
@@ -835,16 +800,15 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
             #         ele_cns = np.hstack([ele_cns, 90*np.ones(WR_filt.shape[0])])
             #     # This approach avoids looping over all range gates, but the method is not as stable
             n_good_kk = (~np.isnan(VR_CNSmax)).sum(axis=0)
-            # NVRAD[kk, :] = (~np.isnan(VR_CNSmax)).sum(axis=0)
+
             n_good[kk, :] = n_good_kk
             V_r = np.ma.masked_where(
-                (np.isnan(VR_CNSmax)),  # & (np.tile(n_good_kk, (azi_mean.shape[0], 1)) < 4)
+                (np.isnan(VR_CNSmax)),
                 VR_CNSmax,
             ).T[..., None]
             mask_V_in = (np.isnan(VR_CNSmax)) | (np.tile(n_good_kk, (azi_mean.shape[0], 1)) < 4)
             V_in = np.ma.masked_where(mask_V_in, VR_CNSmax)
             A = build_Amatrix(azi_mean, ele_cns)
-            # A[abs(A)<1e-3] = 0
             A_r = np.tile(A, (VR_CNSmax.shape[1], 1, 1))
             A_r_MP = np.tile(np.linalg.pinv(A), (VR_CNSmax.shape[1], 1, 1))
             A_r_MP_T = np.einsum("...ij->...ji", A_r_MP)
@@ -900,21 +864,15 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
             ss_e = ((V_r - V_r_est) ** 2).sum(axis=1)
             ss_t = ((V_r - V_r.mean(axis=1)[:, None, :]) ** 2).sum(axis=1)
             R2[kk, :] = np.squeeze(1 - ss_e / ss_t)
-            # R2[kk, :] = 1 - (1 - R2[kk, :]) * (np.sum(~np.isnan(VR_CNSmax.T), axis=1)-1)/(np.sum(~np.isnan(VR_CNSmax.T), axis=1)-2)
-            # sqe = ((V_r_est-V_r_est.mean(axis=1)[:, None, :])**2).sum(axis = 1)
-            # sqt = ((V_r-V_r.mean(axis=1)[:, None, :])**2).sum(axis = 1)
-            # R2[kk, :] = np.squeeze(sqe/sqt)
             R2[kk, np.sum(~np.isnan(VR_CNSmax.T), axis=1) < 4] = np.nan
 
             mask_A = np.tile(mask_V_in.T[..., None], (1, 1, 3))
-            # A_r_m = np.ma.masked_where( mask_A, A_r)
             A_r_T = np.einsum("...ij->...ji", A_r)
             Spp = np.apply_along_axis(
                 np.diag, 1, 1 / np.sqrt(np.einsum("...ii->...i", A_r_T @ A_r))
             )
             Z = np.ma.masked_where(mask_A, A_r @ Spp)
             CN[kk, :] = np.squeeze(np.array([CN_est(X) for X in Z]))
-            # CN[kk, :] = np.array([CN_est(X) for X in A_r_m])
             CN[kk, np.sum(~np.isnan(VR_CNSmax.T), axis=1) < 4] = np.nan
 
             SPEED[kk, :], SPEEDunc[kk, :] = np.vstack(
@@ -945,7 +903,7 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
     errv = np.copy(UVWunc[:, :, 1])
     errw = np.copy(UVWunc[:, :, 2])
 
-    qspeed = ~np.isnan(SPEED)  # *(abs(w)<.3*np.sqrt(np.nanmedian(u)**2+np.nanmedian(v)**2))
+    qspeed = ~np.isnan(SPEED)
     r2[np.isnan(R2)] = -999.0
     qr2 = r2 >= float(confDict["R2_THRESHOLD"])
     cn[np.isnan(CN)] = +999.0
@@ -1221,11 +1179,6 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
             ),
             "height_bnds": (
                 ["height", "nv"],
-                # ,np.array([(np.arange(0,n_gates)
-                #             * float(confDict['RANGE_GATE_LENGTH'])*np.sin(np.nanmedian(elevation)*np.pi/180))
-                #             ,((np.arange(0,n_gates) + 1.)
-                #             * float(confDict['RANGE_GATE_LENGTH'])*np.sin(np.nanmedian(elevation)*np.pi/180))
-                #             ]).T
                 np.float32(height_bnds[NN:, :]),
                 {"units": "m"},
             ),
@@ -1251,11 +1204,6 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
             ),
             "hor_width": (
                 ["height"],
-                # ,np.array([(np.arange(0,n_gates)
-                #             * float(confDict['RANGE_GATE_LENGTH'])*np.sin(np.nanmedian(elevation)*np.pi/180))
-                #             ,((np.arange(0,n_gates) + 1.)
-                #             * float(confDict['RANGE_GATE_LENGTH'])*np.sin(np.nanmedian(elevation)*np.pi/180))
-                #             ]).T
                 np.float32(width[NN:]),
                 {
                     "units": "m",
@@ -1268,8 +1216,6 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
         coords={
             "height": (
                 ["height"],
-                # ,((np.arange(0,n_gates)+.5)*int(confDict['RANGE_GATE_LENGTH'])
-                # *np.sin(np.nanmedian(elevation)*np.pi/180))
                 np.float32(height[NN:]),
                 {
                     "units": "m",

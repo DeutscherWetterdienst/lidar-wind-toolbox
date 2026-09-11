@@ -20,9 +20,6 @@ def build_Amatrix(azimuth_vec, elevation_vec):
 
 
 def VAD_retrieval(azimuth_vec, elevation_vec, Vr):
-    #     u, s, vh = np.linalg.svd(build_Amatrix(azimuth_vec,elevation_vec), full_matrices=True)
-    #     A = build_Amatrix(azimuth_vec,elevation_vec)
-    #     return vh.transpose() @ np.linalg.pinv(diagsvd(s,u.shape[0],vh.shape[0])) @ u.transpose() @ Vr
     return np.linalg.lstsq(build_Amatrix(azimuth_vec, elevation_vec), Vr, rcond=-1)
 
 
@@ -58,27 +55,17 @@ def uvw_2_dir(uvw, uvw_unc):
 
 def calc_sigma_single(SNR_dB, Mpts, nsmpl, BW, delta_v):
     "calculates the instrument uncertainty: SNR in dB!"
-    # SNR_dB = np.ma.masked_values(SNR_dB, np.nan)
-    # SNR_dB = np.ma.masked_invalid(SNR_dB)
     SNR = 10 ** (SNR_dB / 10)
     bb = np.sqrt(2.0 * np.pi) * (delta_v / BW)
     alpha = SNR / bb
     Np = Mpts * nsmpl * SNR
 
-    # a1 = (2.*np.sqrt(np.sqrt(np.pi)/alpha)).filled(np.nan)
-    # a1 = 2.*np.sqrt( np.divide(np.sqrt(np.pi), alpha
-    #                , out=np.full((alpha.shape), np.nan)
-    #                , where=alpha!=0)
-    #                )
-    a1 = 2.0 * (np.sqrt(np.ma.divide(np.sqrt(np.pi), alpha)))  # .filled(np.nan)
-    a2 = 1 + 0.16 * alpha  # .filled(np.nan)
-    a3 = np.ma.divide(delta_v, np.sqrt(Np))  # .filled(np.nan) ##here, Cramer Rao lower bound!
-    SNR = SNR  # .filled(np.nan)
+    a1 = 2.0 * (np.sqrt(np.ma.divide(np.sqrt(np.pi), alpha)))
+    a2 = 1 + 0.16 * alpha
+    a3 = np.ma.divide(delta_v, np.sqrt(Np))
+    SNR = SNR
     sigma = np.ma.masked_where(SNR_dB > -5, (a1 * a2 * a3).filled(np.nan)).filled(a3.filled(np.nan))
 
-    # sigma= np.where(~np.isnan(SNR)
-    #                 ,np.where(SNR_dB <= -5., (a1*a2*a3), a3)
-    #                 ,np.nan)
     return sigma
 
 
@@ -123,7 +110,6 @@ def consensus_mean(Vr, SNR, CNS_range, CNS_percentage, SNR_threshold):
         diff = Vr - MEAN
         mask_m = abs(diff) < 3
         Vr_m = np.ma.masked_where(~mask_m, Vr)
-        # Vr_m.mean(axis=0).filled(np.nan)
         IDX = mask_m
         UNC = (Vr_m.max(axis=0) - Vr_m.min(axis=0)).filled(np.nan) / 2
         return MEAN, IDX, UNC
@@ -241,9 +227,7 @@ def consensus(Vr, SNR, BETA, CNS_range, CNS_percentage, SNR_threshold, B):
             (100 * np.max(SUMlt, axis=0) / CNS_percentage >= condi_vr.sum(axis=0))
             & (condi_vr.sum(axis=0) >= Vr.shape[0] / 100 * 60.0)
         ),
-        # ~((100*np.max(SUMlt, axis=0)/condi_vr.sum(axis=0) >= CNS_percentage) & (100*condi_vr.sum(axis=0)/Vr.shape[0] > 60.))
         Vr_m[-(np.argmax(np.flipud(SUMlt), axis=0) + 1), np.arange(0, SUMlt.shape[1])],
-        # , Vr_m[np.argmax(SUMlt,axis=0), np.arange(0,SUMlt.shape[1])]
     )
     mask_m = abs(Vr_m.filled(999.0) - Vr_maxim.filled(-999.0)) < CNS_range
     Vr_m = np.ma.masked_where(~(mask_m), Vr_m.filled(-999.0))
@@ -297,7 +281,6 @@ def get_cycles(lst, mon):
     ll = 0
     res = {}
     for key, lst in process(lst, int(np.median(np.sign(np.diff(np.array(lst)))))).items():
-        # print(key,np.arange(ll,ll+len(lst)),lst)
         id_tmp = np.arange(ll, ll + len(lst))
         ll += len(lst)
         res.update({key: {"indices": list(id_tmp), "values": lst}})
@@ -306,7 +289,7 @@ def get_cycles(lst, mon):
 
 def grouper(iterable, n, fillvalue=None):
     """Collect data into fixed-length chunks or blocks"""
-    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
+
     args = [iter(iterable)] * n
     return it.zip_longest(*args, fillvalue=fillvalue)
 
@@ -364,10 +347,3 @@ def find_num_dir(n_rays, calc_idx, azimuth, idx_valid):
                 check_num_dir(n_rays, calc_idx, azimuth, idx_valid)[1],
                 check_num_dir(n_rays, calc_idx, azimuth, idx_valid)[2],
             )
-
-
-# def calc_node_degree(Vr,CNS_range):
-#     '''takes masked array as input'''
-#     f_abs_pairdiff = lambda x,y: op.abs(op.sub(x,y))<CNS_range
-#     with np.errstate(invalid='ignore'):
-#         return np.array(list(grouper(it.starmap(f_abs_pairdiff,((it.permutations(Vr.filled(np.nan),2)))),Vr.shape[0]-1))).sum(axis=1)

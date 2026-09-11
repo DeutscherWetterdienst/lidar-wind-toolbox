@@ -49,36 +49,9 @@ def ql_helper(ds, confDict):
     # prepare data for plotting
     # indentify maxima of each cycle
     if condi:
-        #         data = np.mod(azi-azi[0], 360)
-        #         index = np.where(abs(np.diff(data)) > 93)[0]
-        #         ## old method
-        #         # cycles = get_cycles(data, int(np.median(np.sign(np.diff(np.array(data))))))
-        #         ## new method
-        #         cycles = {}
-        #         start = 0
-        #         for ii,ind in enumerate(index):
-        #             if ind == index[-1]:
-        #                 cycles.update( { ii: {'indices': np.arange(start, len(azi)), 'values': azi[start:len(azi)]} })
-        #                 # print('finished cycling!')
-        #             else:
-        #                 cycles.update( { ii: {'indices': np.arange(start, ind+1), 'values': azi[start:ind+1]} })
-        #                 start = ind+1
-        #         df= pd.DataFrame.from_dict(cycles, orient='index')
-        #         df['indices'].apply(lambda row: len(row)).median()
-
-        #         Z = beta
-        #         mask= (np.isnan(Z)) | (Z==-999.)
-        #         masked_Z = np.ma.masked_where(mask, Z)
-        #         beta_max = np.empty((df.__len__(), beta.shape[1]))
-        #         time_mean = np.empty((df.__len__()))
-
-        #         for ii in range(df.__len__()):
-        #             time_mean[ii] = time[df['indices'][ii]].mean(dim='time')
-        #             beta_max[ii] = np.max(Z[df['indices'][ii]], axis=0)
         Z = beta
         mask = (np.isnan(Z)) | (Z == -999.0)
         masked_Z = np.ma.masked_where(mask, Z)
-        # id_condi = np.round(pbdist_alt(azi[:-1].round() % 360, azi[1:].round() % 360, 180)) < 0
         id_condi = np.round(azi[:-1].round() % 360 - azi[1:].round() % 360) >= 180
         idx = np.where(np.hstack([True, id_condi]))[0]
         beta_max = np.full((sum(id_condi), beta.shape[1]), np.nan)

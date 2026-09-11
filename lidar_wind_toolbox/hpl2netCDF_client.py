@@ -12,8 +12,6 @@ from pathlib import Path
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 import matplotlib.dates as mdates
-
-# import packackes used for plotting quicklooks
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -22,8 +20,6 @@ from matplotlib.ticker import MultipleLocator
 from scipy.linalg import diagsvd
 
 from lidar_wind_toolbox.config.config import config
-
-# import
 from lidar_wind_toolbox.hpl_files.hpl_files import hpl_files
 from lidar_wind_toolbox.main_proc import process_dataset, write_netcdf
 from lidar_wind_toolbox.plot_helpers import ql_helper
@@ -160,13 +156,13 @@ class hpl2netCDFClient(object):
         )
         namelist = hpl_list.name
         timelist = hpl_list.time
-        # print('check 1')
+
         if len(hpl_listm1.time) > 0:
             if date_chosen - hpl_listm1.time[-1] <= datetime.timedelta(minutes=30):
                 namelist = [hpl_listm1.name[-1]] + namelist
                 timelist = np.array([hpl_listm1.time[-1]] + list(timelist))
                 print("adding last file of previous day before")
-        # print('check 2')
+
         if len(hpl_listp1.time) > 0:
             if hpl_listp1.time[0] - date_chosen <= datetime.timedelta(days=1, minutes=30):
                 namelist = namelist + [hpl_listp1.name[0]]
@@ -174,9 +170,7 @@ class hpl2netCDFClient(object):
                 print("adding first file of following day after")
 
         hpl_list = hpl_files(namelist, timelist)
-        # print('check 3')
-        # read_idx= hpl_files.reader_idx(hpl_list,confDict,chunks=False)
-        # print(hpl_list.name)
+
         nc_name = hpl_files.combine_lvl1(hpl_list, confDict, date_chosen)
         print(nc_name)
         ds_tmp = xr.open_dataset(nc_name)
@@ -287,15 +281,14 @@ class hpl2netCDFClient(object):
             qwind = np.copy(ds.qwind.data)
 
             mask = qwind < 1
-            # masked_u = np.ma.masked_where(mask,U)
-            # masked_v = np.ma.masked_where(mask,V)
+
             vel_sq_sum = U**2 + V**2
             qvels = (
                 np.sqrt(vel_sq_sum, out=np.zeros(vel_sq_sum.shape), where=~np.isnan(vel_sq_sum))
                 >= 2.5
             )
             qwind = qwind * qvels
-            # qwind = qwind * ( np.sqrt(masked_u**2 + masked_v**2) >= 2.5)
+
             mask = qwind < 1
 
             masked_u = np.ma.masked_where(mask, U)
@@ -303,17 +296,12 @@ class hpl2netCDFClient(object):
             masked_WS = np.ma.masked_where(mask, WS)
 
             # define adjustable and discretized colormap
-            # wsmax = max(np.round(masked_WS.max(),-1), 10)
             wsmax = max(
                 np.round(np.nanpercentile(masked_WS.filled(np.nan).flatten(), 95), -1) + 10, 10
             )
             palette = plt.get_cmap(cmap_discretize(cm.jet, int(wsmax)))
             palette.set_under("white", 1.0)
             # define x-axis values
-            # d= pd.to_datetime(ds.time.data[0]).date()
-            # dp1=pd.to_datetime(ds.time.data[0]).date()+datetime.timedelta(days=1)
-            # dticks= np.arange(d, dp1)
-            # print(d, dp1)
             d0 = date_chosen.date()
             d = datetime.datetime(d0.year, d0.month, d0.day) - datetime.timedelta(hours=time_delta)
             dp1 = (
@@ -333,7 +321,7 @@ class hpl2netCDFClient(object):
                 masked_v,
                 masked_WS,
                 clim=clims,
-                pivot="middle",  # , flip_barb=True
+                pivot="middle",
                 barb_increments=dict(half=2.5, full=5, flag=25),
                 sizes=dict(emptybarb=0.25, spacing=0.1, height=0.5, width=0.3),
                 cmap=palette,
@@ -352,10 +340,7 @@ class hpl2netCDFClient(object):
             )
             cbar.ax.tick_params(labelsize=18, length=0, width=2, direction="in")
             # set time axis
-            # plt.setp(ax, xticks=np.hstack([dticks,dp1+datetime.timedelta(hours=1)]))
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%H"))
-            # ax.xaxis.set_major_locator(mdates.HourLocator(byhour=range(0, 24, 6)))
-            # ax.xaxis.set_minor_locator(mdates.HourLocator(byhour=range(0, 24, 1)))
             ax.xaxis.set_major_locator(
                 mdates.HourLocator(byhour=np.mod(range(0 - time_delta, 24 - time_delta, 6), 24))
             )
@@ -364,8 +349,6 @@ class hpl2netCDFClient(object):
             )
             # put x-and y-label
             ax.set_xlabel(date_chosen.strftime("%Y-%m-%d") + "\n" + "time (UTC)", fontsize=22)
-            # ax.set_xlabel(d.strftime('%Y-%m-%d') + '\n' + ('time (UTC)', 'time (UTC{:+03d})'.format(time_delta))[abs(np.sign(time_delta))]
-            #                             , fontsize=22)
             ax.set_ylabel(r"$\rm{height}\;/\;\rm{m}$", fontsize=22)
 
             # find maximum height
@@ -393,8 +376,6 @@ class hpl2netCDFClient(object):
             qwind = np.copy(ds.qwind.data)
 
             mask = qwind < 1
-            # masked_u = np.ma.masked_where(mask,U)
-            # masked_v = np.ma.masked_where(mask,V)
             vel_sq_sum = U**2 + V**2
             qvels = (
                 np.sqrt(
@@ -418,7 +399,7 @@ class hpl2netCDFClient(object):
                 masked_WS,
                 clim=[0, wsmax],
                 rounding=False,
-                pivot="middle",  # , flip_barb=True
+                pivot="middle",
                 barb_increments=dict(half=0.25, full=5, flag=25),
                 sizes=dict(emptybarb=0.25, spacing=0.1, height=0.0, width=0.0),
                 cmap=palette,
@@ -519,7 +500,6 @@ class hpl2netCDFClient(object):
         else:
             mask = np.isnan(Z)
             masked_Z = np.ma.masked_where(mask, Z)
-            # print(list(ds.keys()))
             if condi:
                 print(vmin, vmax)
                 str_bck = r"$\rm{CNR}\;/\;\rm{dB}$"
@@ -532,13 +512,10 @@ class hpl2netCDFClient(object):
 
             cbar = fig.colorbar(c_temp, ax=ax, extend="both", pad=0.01)
             cbar.set_label(str_bck, rotation=270, fontsize=22, labelpad=37)
-            # cbar.ax.tick_params(labelsize=27, length = 0, width = 2, dir17ection= 'in')
             cbar.ax.tick_params(which="major", direction="out", length=14, width=2, labelsize=22)
             cbar.ax.tick_params(which="minor", direction="out", length=8, width=2, labelsize=22)
             # set x-axis limits
             # define x-axis values
-            # d= pd.to_datetime(ds.time.data[0]).date()
-            # dp1=pd.to_datetime(ds.time.data[0]).date()+datetime.timedelta(days=1)
             d0 = date_chosen.date()
             d = datetime.datetime(d0.year, d0.month, d0.day) - datetime.timedelta(hours=time_delta)
             dp1 = (
@@ -548,21 +525,12 @@ class hpl2netCDFClient(object):
             )
             print(d, dp1)
             dticks = np.arange(d, dp1, datetime.timedelta(hours=1))
-            # dticks= np.arange(d, dp1+datetime.timedelta(hours=2), datetime.timedelta(hours=1))
             ax.set_xlabel(date_chosen.strftime("%Y-%m-%d") + "\n" + "time (UTC)", fontsize=22)
-            # ax.set_xlabel(d.strftime('%Y-%m-%d') + '\n' + ('time (UTC)', 'time (UTC{:+03d})'.format(time_delta))[abs(np.sign(time_delta))]
-            #                             , fontsize=22)
             ax.set_ylabel(r"$\rm{height}\;/\;\rm{m}$", fontsize=22)
             ax.set_xlim(d, dp1)
             ax.set_aspect("auto")
             # set time axis
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%H"))
-            # ax.xaxis.set_major_locator(mdates.HourLocator(byhour=range(0
-            #                                                           ,24
-            #                                                           ,6)))
-            # ax.xaxis.set_minor_locator(mdates.HourLocator(byhour=range(0
-            #                                                           ,24
-            #                                                           ,1)))
             ax.xaxis.set_major_locator(
                 mdates.HourLocator(byhour=np.mod(range(0 - time_delta, 24 - time_delta, 6), 24))
             )
@@ -587,7 +555,6 @@ class hpl2netCDFClient(object):
             # set y-axis limits
             ylims_1 = [0, (np.round(hmax, -2) + 100)]
             ax.set_ylim(ylims_1)
-            # ax.set_xlim(d, dp1)
             # set tick parameters
             ax.tick_params(
                 axis="both",
@@ -712,7 +679,6 @@ class hpl2netCDFClient(object):
                     timelist = timelist + [hpl_listp1.time[0]]
                     print("adding first file of following day after")
         # reduce "again" to time window of interest
-        # print(timelist)
         namelist = list(
             map(
                 namelist.__getitem__,
@@ -735,7 +701,6 @@ class hpl2netCDFClient(object):
         print(namelist, timelist)
         # finalize hpl_list object
         hpl_list = hpl_files(namelist, timelist)
-        # read_idx= hpl_files.reader_idx(hpl_list,confDict,chunks=False)
         # combine l1 files to single file
         nc_name = hpl_files.combine_lvl1(hpl_list, confDict, date_chosen, time_chosen)
         print(nc_name)
@@ -878,7 +843,6 @@ class hpl2netCDFClient(object):
         # infer number of directions
         # don't forget to check for empty calc_idx
 
-        # UVW = np.where(np.zeros((len(calc_idx),n_gates,3)),np.nan,np.nan)
         UVW = np.full((1, n_gates, 3), np.nan)
         UVWunc = np.full((1, n_gates, 3), np.nan)
         SPEED = np.full((1, n_gates), np.nan)
@@ -896,8 +860,7 @@ class hpl2netCDFClient(object):
             print("nrt L2 processing...")
 
             indicator, n_rays, azi_mean, azi_edges = find_num_dir(n_rays, calc_idx, azimuth, 0)
-            # azimuth[azimuth>azi_edges[0]]= azimuth[azimuth>azi_edges[0]]-3
-            # azi_edges[0]= azi_edges[0]-360
+
             r_phi = 360 / (n_rays) / 2
             if ~indicator:
                 print("some issue with the data", n_rays, len(azi_mean), time_start[0])
@@ -910,14 +873,13 @@ class hpl2netCDFClient(object):
 
                 VR_CNSmax = np.full((len(azi_mean), n_gates), np.nan)
                 VR_CNSunc = np.full((len(azi_mean), n_gates), np.nan)
-                # SNR_CNS= np.full((len(azi_mean),n_gates), np.nan)
+
                 BETA_CNS = np.full((len(azi_mean), n_gates), np.nan)
                 SIGMA_CNS = np.full((len(azi_mean), n_gates), np.nan)
-                # azi_CNS= np.full((len(azi_mean),n_gates), np.nan)
+
                 ele_cns = np.full((len(azi_mean),), np.nan)
 
                 for ii, azi_i in enumerate(azi_mean):
-                    # azi_idx = (azi>=azi_edges[ii])*(azi<azi_edges[ii+1])
                     azi_idx = (
                         np.mod(360 - np.mod(np.mod(azi - azi_i, 360) - r_phi, 360), 360)
                         <= 2 * r_phi
@@ -926,7 +888,6 @@ class hpl2netCDFClient(object):
                     ## calculate consensus average
                     VR_CNSmax[ii, :], idx_tmp, VR_CNSunc[ii, :] = consensus(
                         VR[azi_idx],
-                        #   , np.ones(SNR[azi_idx].shape)
                         SNR[azi_idx],
                         BETA[azi_idx],
                         int(confDict["CNS_RANGE"]),
@@ -961,16 +922,14 @@ class hpl2netCDFClient(object):
 
                 #     # This approach avoids looping over all range gates, but the method is not as stable
                 n_good_kk = (~np.isnan(VR_CNSmax)).sum(axis=0)
-                # NVRAD[0, :] = (~np.isnan(VR_CNSmax)).sum(axis=0)
                 n_good[0, :] = n_good_kk
                 V_r = np.ma.masked_where(
-                    (np.isnan(VR_CNSmax)),  # & (np.tile(n_good_kk, (azi_mean.shape[0], 1)) < 4)
+                    (np.isnan(VR_CNSmax)),
                     VR_CNSmax,
                 ).T[..., None]
                 mask_V_in = (np.isnan(VR_CNSmax)) | (np.tile(n_good_kk, (azi_mean.shape[0], 1)) < 4)
                 V_in = np.ma.masked_where(mask_V_in, VR_CNSmax)
                 A = build_Amatrix(azi_mean, ele_cns)
-                # A[abs(A)<1e-3] = 0
                 A_r = np.tile(A, (VR_CNSmax.shape[1], 1, 1))
                 A_r_MP = np.tile(np.linalg.pinv(A), (VR_CNSmax.shape[1], 1, 1))
                 A_r_MP_T = np.einsum("...ij->...ji", A_r_MP)
@@ -1020,21 +979,15 @@ class hpl2netCDFClient(object):
                 ss_e = ((V_r - V_r_est) ** 2).sum(axis=1)
                 ss_t = ((V_r - V_r.mean(axis=1)[:, None, :]) ** 2).sum(axis=1)
                 R2[0, :] = np.squeeze(1 - ss_e / ss_t)
-                # R2[0, :] = 1 - (1 - R2[0, :]) * (np.sum(~np.isnan(VR_CNSmax.T), axis=1)-1)/(np.sum(~np.isnan(VR_CNSmax.T), axis=1)-2)
-                # sqe = ((V_r_est-V_r_est.mean(axis=1)[:, None, :])**2).sum(axis = 1)
-                # sqt = ((V_r-V_r.mean(axis=1)[:, None, :])**2).sum(axis = 1)
-                # R2[0, :] = np.squeeze(sqe/sqt)
                 R2[0, np.sum(~np.isnan(VR_CNSmax.T), axis=1) < 4] = np.nan
 
                 mask_A = np.tile(mask_V_in.T[..., None], (1, 1, 3))
-                # A_r_m = np.ma.masked_where( mask_A, A_r)
                 A_r_T = np.einsum("...ij->...ji", A_r)
                 Spp = np.apply_along_axis(
                     np.diag, 1, 1 / np.sqrt(np.einsum("...ii->...i", A_r_T @ A_r))
                 )
                 Z = np.ma.masked_where(mask_A, A_r @ Spp)
                 CN[0, :] = np.squeeze(np.array([CN_est(X) for X in Z]))
-                # CN[0, :] = np.array([CN_est(X) for X in A_r_m])
                 CN[0, np.sum(~np.isnan(VR_CNSmax.T), axis=1) < 4] = np.nan
 
                 SPEED[0, :], SPEEDunc[0, :] = np.vstack(
@@ -1065,7 +1018,7 @@ class hpl2netCDFClient(object):
         errv = np.copy(UVWunc[:, :, 1])
         errw = np.copy(UVWunc[:, :, 2])
 
-        qspeed = ~np.isnan(SPEED)  # *(abs(w)<.3*np.sqrt(np.nanmedian(u)**2+np.nanmedian(v)**2))
+        qspeed = ~np.isnan(SPEED)
         r2[np.isnan(R2)] = -999.0
         qr2 = r2 >= float(confDict["R2_THRESHOLD"])
         cn[np.isnan(CN)] = +999.0
@@ -1077,8 +1030,6 @@ class hpl2netCDFClient(object):
         qu = np.copy(qspeed)
         qv = np.copy(qspeed)
         qw = np.copy(qspeed)
-        # qspeed = qspeed & qnvrad
-        # qspeed = qwind
         speed[~qspeed] = -999.0
         errspeed[~qspeed] = -999.0
         wdir[~qspeed] = -999.0
@@ -1340,11 +1291,6 @@ class hpl2netCDFClient(object):
                 ),
                 "height_bnds": (
                     ["height", "nv"],
-                    # ,np.array([(np.arange(0,n_gates)
-                    #             * float(confDict['RANGE_GATE_LENGTH'])*np.sin(np.nanmedian(elevation)*np.pi/180))
-                    #             ,((np.arange(0,n_gates) + 1.)
-                    #             * float(confDict['RANGE_GATE_LENGTH'])*np.sin(np.nanmedian(elevation)*np.pi/180))
-                    #             ]).T
                     np.float32(height_bnds[NN:, :]),
                     {"units": "m"},
                 ),
@@ -1370,11 +1316,6 @@ class hpl2netCDFClient(object):
                 ),
                 "hor_width": (
                     ["height"],
-                    # ,np.array([(np.arange(0,n_gates)
-                    #             * float(confDict['RANGE_GATE_LENGTH'])*np.sin(np.nanmedian(elevation)*np.pi/180))
-                    #             ,((np.arange(0,n_gates) + 1.)
-                    #             * float(confDict['RANGE_GATE_LENGTH'])*np.sin(np.nanmedian(elevation)*np.pi/180))
-                    #             ]).T
                     np.float32(width[NN:]),
                     {
                         "units": "m",
@@ -1387,8 +1328,6 @@ class hpl2netCDFClient(object):
             coords={
                 "height": (
                     ["height"],
-                    # ,((np.arange(0,n_gates)+.5)*int(confDict['RANGE_GATE_LENGTH'])
-                    # *np.sin(np.nanmedian(elevation)*np.pi/180))
                     np.float32(height[NN:]),
                     {
                         "units": "m",
@@ -1432,12 +1371,8 @@ class hpl2netCDFClient(object):
         else:
             ds_lvl2.attrs["instrument_id"] = "N/A"
         ds_lvl2.attrs["instrument_contact"] = confDict["NC_INSTRUMENT_CONTACT"]
-        # ds_lvl2.attrs['Source']= "HALO Photonics Doppler lidar (production number: " + confDict['SYSTEM_ID'] + ')'
-        # ds_lvl2.attrs['history']= confDict['NC_HISTORY']
         ds_lvl2.attrs["conventions"] = confDict["NC_CONVENTIONS"]
         ds_lvl2.attrs["processing_date"] = str(pd.to_datetime(datetime.datetime.now())) + " UTC"
-        # ds_lvl2.attrs['author']= confDict['NC_AUTHOR']
-        # ds_lvl2.attrs['licence']= confDict['NC_LICENCE']
         ds_lvl2.attrs["data_policy"] = confDict["NC_DATA_POLICY"]
 
         # attributes for operational use of netCDFs, see E-Profile wind profiler netCDF version 1.7
@@ -1480,7 +1415,6 @@ class hpl2netCDFClient(object):
                 # set all uncertainties to NaN-Value
                 for item in ["erru", "errv", "errw", "errwspeed", "errwdir"]:
                     ds_lvl2[item] = ds_lvl2[item].where(ds_lvl2[item] == -999.0, other=-999.0)
-        #             ds_lvl2[item] = ds_lvl2[item].where(np.isnan(ds_lvl2[item]), other=np.nan)
         ds_lvl2.attrs["comments"] = confDict["NC_COMMENTS"]
 
         path = Path(confDict["NC_L2_PATH"])
@@ -1499,17 +1433,10 @@ class hpl2netCDFClient(object):
         comp = dict(zlib=True, complevel=9)
         encoding = {var: comp for var in np.hstack([ds_lvl2.data_vars, ds_lvl2.coords])}
 
-        # ds_lvl2.time.attrs['units'] = ('seconds since 1970-01-01 00:00:00', 'seconds since 1970-01-01 00:00:00 {:+03d}'.format(time_delta))[abs(np.sign(time_delta))]
         ds_lvl2.time.encoding["units"] = (
             "seconds since 1970-01-01 00:00:00",
             "seconds since 1970-01-01 00:00:00 {:+03d}".format(time_delta),
         )[abs(np.sign(time_delta))]
-        # ## add configuration used to create the file
-        # configuration = """"""
-        # for dd in confDict:
-        #     if not dd in ['PROC_PATH', 'NC_L1_PATH', 'NC_L2_PATH', 'NC_L2_QL_PATH']:
-        #         configuration += dd + '=' + confDict[dd]+'\n'
-        # ds_lvl2.attrs['File_Configuration']= configuration
         ## save file to path
         ds_lvl2.to_netcdf(path, unlimited_dims={"time": True}, encoding=encoding)
         print(path)

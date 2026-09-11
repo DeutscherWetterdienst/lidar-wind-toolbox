@@ -16,7 +16,6 @@ class hpl_files(object):
     name = []
     time = []
 
-    # The class "constructor" - It's actually an initializer
     def __init__(self, name, time):
         self.name = name
         self.time = time
@@ -38,7 +37,6 @@ class hpl_files(object):
             / date_chosen.strftime("%Y%m")
             / date_chosen.strftime("%Y%m%d")
         )
-        # confDict= config.gen_confDict()
 
         if confDict["SYSTEM"] == "halo":
             scan_type = confDict["SCAN_TYPE"]
@@ -128,7 +126,6 @@ class hpl_files(object):
     def range_calc(rg_vec, confDict):
         """Calculate range bounds, also accounting for overlapping gates. If your hpl-files contain overlapping gates please add the "OVERLAPPING_GATES" argument to the configuration file."""
         if "OVERLAPPING_GATES" in confDict:
-            # r = lambda x,idx: (x + idx) *  float(confDict['RANGE_GATE_LENGTH'])/(1,float(confDict['NUMBER_OF_GATE_POINTS']))[int(confDict['OVERLAPPING_GATES'])]
             r = lambda x, idx: (
                 (
                     x
@@ -152,7 +149,6 @@ class hpl_files(object):
     def split_data(string):
         return re.split("\s+", re.sub("\n", "", string).strip())
 
-    # switch_str = {True: split_header(line), False: split_data(line)}
     @staticmethod
     def split_default(string):
         return string
@@ -223,7 +219,6 @@ class hpl_files(object):
 
         try:
             ds.to_netcdf(path, encoding=encoding)
-        #         ds.to_netcdf(path, unlimited_dims={'time':True}, encoding=encoding)
         except RuntimeError:
             print("CRITICAL - writing NetCDF file failed, re-trying without timestamps")
             for ts in ["timestamp", "timestamp_local"]:
@@ -238,7 +233,7 @@ class hpl_files(object):
         if confDict["SYSTEM"] == "halo":
             ds = xr.concat(
                 (hpl_files.read_hpl(iit, confDict) for iit in hpl_list.name),
-                dim="time",  # , combine='nested'#,compat='identical'
+                dim="time",
                 data_vars="minimal",
                 coords="minimal",
             )
@@ -250,7 +245,6 @@ class hpl_files(object):
                 ds = ds.drop_vars(["delv"])
 
         elif confDict["SYSTEM"] == "windcube":
-            # if (confDict['SCAN_TYPE'] == 'dbs'):
             if ("fixed".lower() in confDict["SCAN_TYPE"].lower()) or ("stare".lower()) in confDict[
                 "SCAN_TYPE"
             ].lower():
@@ -261,7 +255,7 @@ class hpl_files(object):
                         for iit in hpl_list.name
                         if hpl_files.read_wcsradial(iit, confDict) is not False
                     ),
-                    dim="time",  # , combine='nested'#,compat='identical'
+                    dim="time",
                     data_vars="minimal",
                     compat="override",
                     coords="minimal",
@@ -282,7 +276,7 @@ class hpl_files(object):
                         for iit in hpl_list.name
                         if hpl_files.read_wc_type(iit) is not False
                     ),
-                    dim="time",  # , combine='nested'#,compat='identical'
+                    dim="time",
                     data_vars="minimal",
                     compat="override",
                     coords="minimal",
@@ -336,10 +330,8 @@ class hpl_files(object):
             ds.attrs["instrument_id"] = confDict["NC_INSTRUMENT_ID"]
         else:
             ds.attrs["instrument_id"] = "N/A"
-            # ds.attrs['Source']= "HALO Photonics Doppler lidar (system_id: " + confDict['SYSTEM_ID']
         ds.attrs["conventions"] = confDict["NC_CONVENTIONS"]
         ds.attrs["processing_date"] = str(pd.to_datetime(datetime.datetime.now())) + " UTC"
-        # ds.attrs['Author']= confDict['NC_AUTHOR']
         ds.attrs["instrument_contact"] = confDict["NC_INSTRUMENT_CONTACT"]
         ds.attrs["data_policy"] = confDict["NC_DATA_POLICY"]
         # attributes for operational use of netCDFs, see E-Profile wind profiler netCDF version 1.7
@@ -566,12 +558,9 @@ class hpl_files(object):
         range_bnds = np.array([range_mid - dr, range_mid + dr]).T
         tgint = (2 * np.array(confDict["RANGE_GATE_LENGTH"], dtype="f4") / 299792458).astype("f4")
 
-        #         SNR_tmp= np.copy(np.squeeze(mdata['snrp1']))-1
         SNR_tmp = np.copy(mdata["snrp1"]) - 1
-        # SNR_tmp[SNR_tmp<=0]= np.nan
         SNR_tmp[abs(SNR_tmp) <= np.finfo(np.float32).eps] = np.finfo(np.float32).eps
         ## calculate SNR in dB
-        # SNR_dB= 10*np.log10(np.ma.masked_values(SNR_tmp, np.nan)).filled(np.nan)
         SNR_dB = 10 * np.log10(SNR_tmp.astype(complex)).real
         ## calculate measurement uncertainty, with consensus indices
         sigma_tmp = proc.hpl2netCDF_client.calc_sigma_single(
@@ -586,7 +575,6 @@ class hpl_files(object):
             {
                 "dv": (
                     ["time", "range"],
-                    #                                 , np.squeeze(mdata['velocity'])
                     mdata["velocity"],
                     {
                         "units": "m s-1",
@@ -611,7 +599,6 @@ class hpl_files(object):
                 ),
                 "intensity": (
                     ["time", "range"],
-                    #                                         , np.squeeze(mdata['snrp1'])
                     mdata["snrp1"],
                     {
                         "units": "1",
@@ -624,7 +611,6 @@ class hpl_files(object):
                 ),
                 "beta": (
                     ["time", "range"],
-                    #                                    , np.squeeze(mdata['beta'])
                     mdata["beta"],
                     {
                         "units": "m-1 sr-1",
@@ -637,7 +623,6 @@ class hpl_files(object):
                 ),
                 "delv": (
                     ["time", "range"],
-                    #                                    , np.squeeze(mdata['beta'])
                     mdata["dels"],
                     {
                         "units": "m s-1",
@@ -650,7 +635,6 @@ class hpl_files(object):
                 ),
                 "azi": (
                     "time",
-                    #                                  , np.squeeze(mbeam['azimuth'])
                     mbeam["azimuth"],
                     {
                         "units": "degree",
@@ -670,7 +654,6 @@ class hpl_files(object):
                 #                                   )
                 "zenith": (
                     "time",
-                    #                                     , 90-np.squeeze(mbeam['elevation'])
                     90 - mbeam["elevation"],
                     {
                         "units": "degree",
@@ -776,7 +759,7 @@ class hpl_files(object):
                 ),
                 "npls": (
                     [],
-                    np.float32(confDict["PULSES_PER_DIRECTION"]),  # [int(mheader['Pulses/ray'])]
+                    np.float32(confDict["PULSES_PER_DIRECTION"]),
                     {"long_name": "number of pulses per ray", "units": "1", "_FillValue": -999.0},
                 ),
                 "focus": (
@@ -851,14 +834,12 @@ class hpl_files(object):
                     range_bnds.astype("f4"),
                     {"units": "m", "_FillValue": -999.0},
                 ),
-                #                     , 'pitch': ('time', np.squeeze(mbeam['pitch']))
-                #                     , 'roll': ('time', np.squeeze(mbeam['roll']))
             },
             coords={
                 "time": (
                     ["time"],
-                    time_ds,  # .astype(np.float64)
-                    {  #'units': ('seconds since 1970-01-01 00:00:00', 'seconds since 1970-01-01 00:00:00 {:+03d}'.format(time_delta))[abs(np.sign(time_delta))]
+                    time_ds,
+                    {
                         "units": "seconds since 1970-01-01 00:00:00",
                         "standard_name": "time",
                         "long_name": "Time",
@@ -869,7 +850,6 @@ class hpl_files(object):
                 "range": (
                     ["range"],
                     range_mid.astype("f4"),
-                    #  , ((mdata['range gate'][0,:] + 0.5) * np.float32(mheader['Range gate length (m)'])).astype('f4')
                     {
                         "units": "m",
                         "long_name": "line of sight distance towards the center of each range gate",
@@ -906,7 +886,6 @@ class hpl_files(object):
             else:
                 time_reference = None
             sweep_list = list(ds_root.sweep_group_name.data)
-            # print("combining sweeps {}".format(sweep_list))
             # read radial data in sweep group
             ds_tmp = xr.concat(
                 (
@@ -1139,7 +1118,7 @@ class hpl_files(object):
                         },
                     ),
                     "nqf": (
-                        [],  # (np.float32(mheader['Gate length (pts)'])/tgint/2).astype('f4')
+                        [],
                         (
                             (ds_tmp.radial_wind_speed.max() - ds_tmp.radial_wind_speed.min()).data
                             / float(confDict["SYSTEM_WAVELENGTH"])
@@ -1150,7 +1129,7 @@ class hpl_files(object):
                         },
                     ),
                     "nqv": (
-                        [],  # (np.float32(confDict['NUMBER_OF_GATE_POINTS'])/tgint/2*np.float32(confDict['SYSTEM_WAVELENGTH'])/2).astype('f4')
+                        [],
                         (
                             (ds_tmp.radial_wind_speed.max() - ds_tmp.radial_wind_speed.min()).data
                             / 2
@@ -1196,8 +1175,6 @@ class hpl_files(object):
                         range_bnds.astype("f4"),
                         {"units": "m", "_FillValue": -999.0},
                     ),
-                    #                     , 'pitch': ('time', np.squeeze(mbeam['pitch']))
-                    #                     , 'roll': ('time', np.squeeze(mbeam['roll']))
                 },
                 coords={
                     "time": (

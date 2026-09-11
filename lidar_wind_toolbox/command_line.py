@@ -10,7 +10,6 @@ import datetime
 import sys
 import textwrap
 
-# from version import __version__
 from pandas.plotting import register_matplotlib_converters
 
 from lidar_wind_toolbox.hpl2netCDF_client import hpl2netCDFClient
@@ -45,7 +44,6 @@ def main():
         description="Process Halo photonics Doppler lidar Client",
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    # parser.add_argument('--version', action='version', version='%(prog)s v' + __version__)
     parser.add_argument(
         "-u",
         "--url",

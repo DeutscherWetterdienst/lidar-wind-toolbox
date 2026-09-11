@@ -9,7 +9,6 @@ from lidar_wind_toolbox.wind_proc import lvl2vad_standard, lvl2wcdbs
 
 def process_dataset(ds_tmp, date_chosen, confDict):
     if confDict["SYSTEM"].lower() == "windcube":
-        # if (len(ds_tmp.range.dims) > 1):
         if "fixed" not in confDict["SCAN_TYPE"].lower():
             if (
                 ("dbs" in confDict["SCAN_TYPE"].lower())
@@ -58,14 +57,12 @@ def process_dataset(ds_tmp, date_chosen, confDict):
     else:
         ds_lvl2.attrs["instrument_id"] = "N/A"
     ds_lvl2.attrs["instrument_contact"] = confDict["NC_INSTRUMENT_CONTACT"]
-    # ds_lvl2.attrs['Source']= "HALO Photonics Doppler lidar (production number: " + confDict['SYSTEM_ID'] + ')'
-    # ds_lvl2.attrs['history']= confDict['NC_HISTORY']
+
     ds_lvl2.attrs["conventions"] = confDict["NC_CONVENTIONS"]
     ds_lvl2.attrs["processing_date"] = str(pd.to_datetime(datetime.datetime.now())) + " UTC"
-    # ds_lvl2.attrs['author']= confDict['NC_AUTHOR']
-    # ds_lvl2.attrs['licence']= confDict['NC_LICENCE']
+
     ds_lvl2.attrs["data_policy"] = confDict["NC_DATA_POLICY"]
-    # attributes for operational use of netCDFs, see E-Profile wind profiler netCDF version 1.7
+
     if "NC_WIGOS_STATION_ID" in confDict:
         ds_lvl2.attrs["wigos_station_id"] = confDict["NC_WIGOS_STATION_ID"]
     else:
@@ -100,7 +97,7 @@ def process_dataset(ds_tmp, date_chosen, confDict):
             # set all uncertainties to NaN-Value
             for item in ["erru", "errv", "errw", "errwspeed", "errwdir"]:
                 ds_lvl2[item] = ds_lvl2[item].where(ds_lvl2[item] == -999.0, other=-999.0)
-    #             ds_lvl2[item] = ds_lvl2[item].where(np.isnan(ds_lvl2[item]), other=np.nan)
+
     ds_lvl2.attrs["comments"] = confDict["NC_COMMENTS"]
     return ds_lvl2
 
@@ -115,7 +112,7 @@ def write_netcdf(ds, filename, confDict):
         time_delta = int(confDict["UTC_OFFSET"])
     else:
         time_delta = 0
-    # ds.time.attrs['units'] = ('seconds since 1970-01-01 00:00:00', 'seconds since 1970-01-01 00:00:00 {:+03d}'.format(time_delta))[abs(np.sign(time_delta))]
+
     ds.time.encoding["units"] = (
         "seconds since 1970-01-01 00:00:00",
         "seconds since 1970-01-01 00:00:00 {:+03d}".format(time_delta),
