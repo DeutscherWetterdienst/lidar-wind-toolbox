@@ -1,0 +1,37 @@
+[project]
+name = "lidar_wind_toolbox"
+version = "0.1.0"
+description = "Processing tools for Doppler wind lidar data"
+requires-python = ">=3.11.0,<4"
+readme = "README.md"
+dependencies = [
+    "matplotlib>=3.11.1",
+    "numpy>=2.4.6",
+    "pandas>=3.0.5",
+    "scipy>=1.17.1",
+    "xarray>=2026.7.0",
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.9.4",
+    "deptry>=0.24.0",
+    "mypy>=1.19.1",
+    "netcdf4>=1.7.4",
+    "pre-commit>=4.5.1",
+    "ruff==0.15.4",
+]
+
+[project.scripts]
+wind-lidar-process = "lidar_wind_toolbox.command_line:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.mypy]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_any_generics = true
+exclude = "(.pyi)"
