@@ -1,0 +1,43 @@
+name: Verify
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Check dependencies
+        run: uv run deptry .
+
+      - name: Run Bandit
+        run: uv run bandit --recursive lidar_wind_toolbox/
+
+      - name: Run mypy
+        run: uv run mypy lidar_wind_toolbox
+
+      - name: Run Ruff linting
+        run: uv run ruff check
+
+      - name: Check formatting
+        run: uv run ruff format --check
+
+      - name: Run tests
+        run: uv run pytest
