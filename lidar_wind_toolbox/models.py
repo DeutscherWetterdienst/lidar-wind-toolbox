@@ -107,3 +107,27 @@ class ProcessingContext:
     def __post_init__(self) -> None:
         if self.processed_at.tzinfo is None or self.processed_at.utcoffset() is None:
             raise ValueError("processed_at must be timezone-aware")
+
+
+@dataclass(frozen=True)
+class WindCubeLevel1ReaderSettings:
+    """Explicit non-I/O settings required to normalize WindCube scan files."""
+
+    pulse_duration_s: float
+    points_per_gate: int
+    pulses_per_direction: int
+    pulse_repetition_frequency_hz: float
+    fft_points: int
+    focus_m: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.pulse_duration_s <= 0:
+            raise ValueError("pulse_duration_s must be positive")
+        if self.points_per_gate <= 0:
+            raise ValueError("points_per_gate must be positive")
+        if self.pulses_per_direction <= 0:
+            raise ValueError("pulses_per_direction must be positive")
+        if self.pulse_repetition_frequency_hz <= 0:
+            raise ValueError("pulse_repetition_frequency_hz must be positive")
+        if self.fft_points <= 0:
+            raise ValueError("fft_points must be positive")

@@ -8,9 +8,14 @@ from lidar_wind_toolbox.models import (
     ProcessingContext,
     ProcessingWindow,
     ProductMetadata,
+    WindCubeLevel1ReaderSettings,
     WindRetrievalSettings,
 )
-from lidar_wind_toolbox.processing import retrieve_windcube_vad
+from lidar_wind_toolbox.processing import (
+    process_windcube_vad_files,
+    read_windcube_scan_files,
+    retrieve_windcube_vad,
+)
 
 __all__ = [
     "LidarWindToolboxError",
@@ -20,6 +25,9 @@ __all__ = [
     "ProcessingWindow",
     "ProductMetadata",
     "UnsupportedScanTypeError",
+    "WindCubeLevel1ReaderSettings",
     "WindRetrievalSettings",
+    "process_windcube_vad_files",
+    "read_windcube_scan_files",
     "retrieve_windcube_vad",
 ]

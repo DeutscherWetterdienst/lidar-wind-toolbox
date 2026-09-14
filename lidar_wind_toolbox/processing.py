@@ -1,14 +1,67 @@
 import json
 from dataclasses import asdict
 from datetime import UTC, time, timedelta
+from pathlib import Path
 
 import xarray as xr
 
 from lidar_wind_toolbox.exceptions import UnsupportedScanTypeError
+from lidar_wind_toolbox.hpl_files.hpl_files import hpl_files
 from lidar_wind_toolbox.main_proc import process_dataset
 from lidar_wind_toolbox.metadata import add_global_metadata
-from lidar_wind_toolbox.models import ProcessingContext
+from lidar_wind_toolbox.models import ProcessingContext, WindCubeLevel1ReaderSettings
 from lidar_wind_toolbox.validation import validate_windcube_vad_input
+
+
+def read_windcube_scan_files(
+    files: list[Path],
+    *,
+    context: ProcessingContext,
+    reader_settings: WindCubeLevel1ReaderSettings,
+) -> xr.Dataset:
+    """Read and normalize WindCube scan files into the internal retrieval dataset."""
+
+    if context.instrument.system != "windcube":
+        raise UnsupportedScanTypeError(
+            f"read_windcube_scan_files requires a WindCube context, got {context.instrument.system!r}"
+        )
+
+    if context.scan_type != "vad":
+        raise UnsupportedScanTypeError(
+            f"read_windcube_scan_files currently requires scan_type='vad', got {context.scan_type!r}"
+        )
+
+    if not files:
+        raise ValueError("files must not be empty")
+
+    files_hpl = hpl_files.filelist_to_hpl_files(files, context.instrument.system)
+    processing_day = context.window.start.astimezone(UTC).replace(tzinfo=None)
+
+    return hpl_files.combine_lvl1_to_ds(
+        files_hpl,
+        _legacy_reader_config(
+            context=context,
+            reader_settings=reader_settings,
+        ),
+        processing_day,
+    )
+
+
+def process_windcube_vad_files(
+    files: list[Path],
+    *,
+    context: ProcessingContext,
+    reader_settings: WindCubeLevel1ReaderSettings,
+) -> tuple[xr.Dataset, xr.Dataset]:
+    """Read WindCube scan files and retrieve the corresponding Level-2 VAD product."""
+
+    level1 = read_windcube_scan_files(
+        files,
+        context=context,
+        reader_settings=reader_settings,
+    )
+    level2 = retrieve_windcube_vad(level1, context)
+    return level1, level2
 
 
 def retrieve_windcube_vad(
@@ -79,6 +132,48 @@ def _validate_daily_window(context: ProcessingContext) -> None:
 
     if end != start + timedelta(days=1):
         raise ValueError("WindCube VAD daily retrieval requires a 24-hour UTC window")
+
+
+def _legacy_reader_config(
+    *,
+    context: ProcessingContext,
+    reader_settings: WindCubeLevel1ReaderSettings,
+) -> dict[str, str]:
+    """Translate typed reader settings for the legacy Level-1 normalization path."""
+
+    return {
+        "SYSTEM": context.instrument.system,
+        "SYSTEM_ID": context.instrument.instrument_serial_number,
+        "SYSTEM_LATITUDE": str(context.instrument.latitude_deg),
+        "SYSTEM_LONGITUDE": str(context.instrument.longitude_deg),
+        "SYSTEM_ALTITUDE": str(context.instrument.altitude_m),
+        "SYSTEM_WAVELENGTH": str(context.instrument.wavelength_m),
+        "SCAN_TYPE": context.scan_type,
+        "PULS_DURATION": str(reader_settings.pulse_duration_s),
+        "NUMBER_OF_GATE_POINTS": str(reader_settings.points_per_gate),
+        "PULSES_PER_DIRECTION": str(reader_settings.pulses_per_direction),
+        "PULS_REPETITION_FREQ": str(reader_settings.pulse_repetition_frequency_hz),
+        "FFT_POINTS": str(reader_settings.fft_points),
+        "FOCUS": str(reader_settings.focus_m) if reader_settings.focus_m is not None else "0",
+        "AVG_MIN": str(context.retrieval.averaging_minutes),
+        "NC_TITLE": context.product.title,
+        "NC_INSTITUTION": context.product.institution,
+        "NC_SITE_LOCATION": context.product.site_location,
+        "NC_SOURCE": context.product.source,
+        "NC_INSTRUMENT_TYPE": context.instrument.instrument_type,
+        "NC_INSTRUMENT_MODE": context.scan_type,
+        "NC_INSTRUMENT_CONTACT": context.instrument.contact or "N/A",
+        "NC_INSTRUMENT_ID": context.instrument.instrument_id or "N/A",
+        "NC_INSTRUMENT_SERIAL_NUMBER": context.instrument.instrument_serial_number,
+        "NC_INSTRUMENT_FIRMWARE_VERSION": context.instrument.firmware_version or "N/A",
+        "NC_CONVENTIONS": context.product.conventions,
+        "NC_DATA_POLICY": context.product.data_policy,
+        "NC_COMMENTS": context.product.comments,
+        "NC_HISTORY": "Processed by lidar_wind_toolbox",
+        "NC_WIGOS_STATION_ID": context.product.wigos_station_id or "N/A",
+        "NC_WMO_ID": context.product.wmo_id or "N/A",
+        "NC_PI_ID": context.product.principal_investigator or "N/A",
+    }
 
 
 def _legacy_config(

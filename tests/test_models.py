@@ -2,7 +2,11 @@ from datetime import datetime, timezone
 
 import pytest
 
-from lidar_wind_toolbox.models import ProcessingWindow, WindRetrievalSettings
+from lidar_wind_toolbox.models import (
+    ProcessingWindow,
+    WindCubeLevel1ReaderSettings,
+    WindRetrievalSettings,
+)
 
 
 def test_processing_window_rejects_naive_timestamps() -> None:
@@ -32,4 +36,15 @@ def test_retrieval_settings_require_three_directions() -> None:
             minimum_radial_velocities=3,
             condition_number_threshold=10.0,
             r2_threshold=0.95,
+        )
+
+
+def test_windcube_level1_reader_settings_require_positive_values() -> None:
+    with pytest.raises(ValueError, match="pulse_duration_s must be positive"):
+        WindCubeLevel1ReaderSettings(
+            pulse_duration_s=0.0,
+            points_per_gate=10,
+            pulses_per_direction=3000,
+            pulse_repetition_frequency_hz=10000.0,
+            fft_points=1024,
         )
