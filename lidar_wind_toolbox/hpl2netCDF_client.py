@@ -19,12 +19,12 @@ import xarray as xr
 from matplotlib.ticker import MultipleLocator
 from scipy.linalg import diagsvd
 
-from lidar_wind_toolbox.config import config
-from lidar_wind_toolbox.hpl_files import hpl_files
-from lidar_wind_toolbox.main_proc import process_dataset, write_netcdf
-from lidar_wind_toolbox.plot_helpers import ql_helper
-from lidar_wind_toolbox.signal_calc import CN_est, in_db
-from lidar_wind_toolbox.wind_calc import (
+from .config import config
+from .hpl_files import hpl_files
+from .main_proc import process_dataset, write_netcdf
+from .plot_helpers import ql_helper
+from .signal_calc import CN_est, in_db
+from .wind_calc import (
     build_Amatrix,
     calc_sigma_single,
     consensus,

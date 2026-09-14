@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from lidar_wind_toolbox.wind_proc import lvl2vad_standard, lvl2wcdbs
+from .wind_proc import lvl2vad_standard, lvl2wcdbs
 
 
 def process_dataset(ds_tmp, date_chosen, confDict):

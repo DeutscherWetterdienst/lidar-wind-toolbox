@@ -1,6 +1,6 @@
 import xarray as xr
 
-from lidar_wind_toolbox.exceptions import InputDatasetError
+from .exceptions import InputDatasetError
 
 
 def require_variables(dataset: xr.Dataset, names: set[str]) -> None:

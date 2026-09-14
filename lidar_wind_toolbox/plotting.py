@@ -12,7 +12,7 @@ import xarray as xr
 from matplotlib.figure import Figure
 from matplotlib.ticker import MultipleLocator
 
-from lidar_wind_toolbox.plot_helpers import ql_helper
+from .plot_helpers import ql_helper
 
 ColorKey = Literal["red", "green", "blue", "alpha"]
 

@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from lidar_wind_toolbox.wind_calc import calc_sigma_single
+from .wind_calc import calc_sigma_single
 
 
 class hpl_files(object):
