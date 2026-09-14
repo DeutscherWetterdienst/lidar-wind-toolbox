@@ -12,7 +12,7 @@ The preferred interface is the typed Python API:
 - pass explicit raw input files
 - pass explicit metadata and retrieval settings as Python objects
 - receive Level-1 and Level-2 `xarray.Dataset` objects
-- write files only in your calling application
+- write files only in your calling application or via the explicit helpers in `lidar_wind_toolbox.io`
 
 The legacy config-file-based workflow is still present, but it is considered
 transitional.
@@ -96,7 +96,8 @@ level1, level2 = process_windcube_vad_files(
 )
 ```
 
-The functions do not read config files and do not write output files.
+The functions do not read config files and do not write output files unless you
+explicitly call the I/O helpers.
 
 ## Core retrieval API
 
@@ -106,6 +107,48 @@ If you already have an in-memory normalized dataset, you can call the retrieval 
 from lidar_wind_toolbox import retrieve_windcube_vad
 
 level2 = retrieve_windcube_vad(level1, context)
+```
+
+## Plotting
+
+The package also provides dataset-based plotting helpers:
+
+```python
+from datetime import date
+from pathlib import Path
+
+from lidar_wind_toolbox.io import save_figure
+from lidar_wind_toolbox.plotting import (
+    plot_level1_backscatter_quicklook,
+    plot_level2_wind_quicklook,
+)
+
+fig1 = plot_level1_backscatter_quicklook(
+    level1,
+    day=date(2026, 1, 1),
+    system="windcube",
+)
+
+fig2 = plot_level2_wind_quicklook(
+    level2,
+    day=date(2026, 1, 1),
+)
+
+save_figure(fig1, Path("backscatter.png"))
+save_figure(fig2, Path("wind.png"))
+```
+
+## Writing datasets
+
+The package provides explicit helpers for writing netCDF datasets and figures:
+
+```python
+from pathlib import Path
+
+from lidar_wind_toolbox.io import write_dataset
+
+write_dataset(level1, Path("out/level1.nc"))
+write_dataset(level2, Path("out/level2.nc"))
 ```
 
 ## Legacy-to-new mapping
@@ -166,5 +209,6 @@ Automated tests currently cover:
 - selected wind-calculation helpers
 - a synthetic conical-scan processing smoke test
 - config-free file-to-Level-2 orchestration smoke tests
+- explicit dataset and figure output helpers
 
 Validation against real instrument data is still required before operational use.

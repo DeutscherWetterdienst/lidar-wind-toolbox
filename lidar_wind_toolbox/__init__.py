@@ -3,6 +3,7 @@ from lidar_wind_toolbox.exceptions import (
     LidarWindToolboxError,
     UnsupportedScanTypeError,
 )
+from lidar_wind_toolbox.io import save_figure, write_dataset
 from lidar_wind_toolbox.models import (
     InstrumentMetadata,
     ProcessingContext,
@@ -30,4 +31,6 @@ __all__ = [
     "process_windcube_vad_files",
     "read_windcube_scan_files",
     "retrieve_windcube_vad",
+    "save_figure",
+    "write_dataset",
 ]
