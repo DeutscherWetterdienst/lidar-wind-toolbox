@@ -3,6 +3,7 @@ from dataclasses import asdict
 from datetime import UTC, time, timedelta
 from pathlib import Path
 
+import numpy as np
 import xarray as xr
 
 from lidar_wind_toolbox.exceptions import UnsupportedScanTypeError
@@ -10,7 +11,7 @@ from lidar_wind_toolbox.hpl_files.hpl_files import hpl_files
 from lidar_wind_toolbox.main_proc import process_dataset
 from lidar_wind_toolbox.metadata import add_global_metadata
 from lidar_wind_toolbox.models import ProcessingContext, WindCubeLevel1ReaderSettings
-from lidar_wind_toolbox.validation import validate_windcube_vad_input
+from lidar_wind_toolbox.validation import validate_normalized_windcube_level1
 
 
 def read_windcube_scan_files(
@@ -86,7 +87,7 @@ def retrieve_windcube_vad(
         )
 
     _validate_daily_window(context)
-    validate_windcube_vad_input(dataset)
+    validate_normalized_windcube_level1(dataset)
 
     legacy_config = _legacy_config(
         context,
@@ -96,8 +97,11 @@ def retrieve_windcube_vad(
     processing_day = context.window.start.astimezone(UTC).replace(tzinfo=None)
 
     # Legacy code mutates its input dataset. Preserve the caller's dataset.
+    normalized_input = dataset.copy(deep=True)
+    legacy_input = _to_legacy_retrieval_dataset(normalized_input)
+
     result = process_dataset(
-        dataset.copy(deep=True),
+        legacy_input,
         processing_day,
         legacy_config,
     )
@@ -224,3 +228,51 @@ def _legacy_config(
         "NC_WMO_ID": context.product.wmo_id or "N/A",
         "NC_PI_ID": context.product.principal_investigator or "N/A",
     }
+
+
+def _to_legacy_retrieval_dataset(dataset: xr.Dataset) -> xr.Dataset:
+    """Translate the normalized Level-1 dataset to the legacy retrieval variable names."""
+
+    result = dataset.copy(deep=False)
+
+    rename_map: dict[str, str] = {}
+
+    if "dv" in result.variables:
+        rename_map["dv"] = "radial_wind_speed"
+    if "azi" in result.variables:
+        rename_map["azi"] = "azimuth"
+    if "zenith" in result.variables:
+        rename_map["zenith"] = "elevation"
+
+    if rename_map:
+        result = result.rename(rename_map)
+
+    if "elevation" in result.variables:
+        result["elevation"] = 90 - result["elevation"]
+
+    if "intensity" in result.variables:
+        intensity = result["intensity"]
+        result["cnr"] = xr.where(intensity > 0, 10 * np.log10(intensity - 1), np.nan)
+
+    if "beta" in result.variables and "relative_beta" not in result.variables:
+        result["relative_beta"] = result["beta"]
+
+    if "delv" in result.variables and "doppler_spectrum_width" not in result.variables:
+        result["doppler_spectrum_width"] = result["delv"]
+
+    if "range_gate_length" not in result.variables:
+        if "range_bnds" in result.variables:
+            result["range_gate_length"] = (
+                (result["range_bnds"].isel(nv=1) - result["range_bnds"].isel(nv=0))
+                .mean()
+                .astype(np.float32)
+            )
+        elif result.sizes.get("range", 0) > 1:
+            result["range_gate_length"] = result["range"].diff("range").astype(np.float32).mean()
+        else:
+            raise ValueError(
+                "Cannot infer range_gate_length from a dataset without range_bnds "
+                "or multiple range coordinates"
+            )
+
+    return result

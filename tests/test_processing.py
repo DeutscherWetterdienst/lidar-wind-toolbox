@@ -68,45 +68,49 @@ def make_reader_settings() -> WindCubeLevel1ReaderSettings:
     )
 
 
-def synthetic_dataset() -> xr.Dataset:
+def normalized_level1_dataset() -> xr.Dataset:
     azimuth = np.repeat(np.arange(0.0, 360.0, 30.0), 2)
     time = 1_767_225_600.0 + np.arange(azimuth.size) * 5.0
     ranges = np.array([50.0, 100.0], dtype=np.float32)
 
     return xr.Dataset(
         data_vars={
-            "radial_wind_speed": (
+            "dv": (
                 ("time", "range"),
                 np.full((azimuth.size, ranges.size), 2.0, dtype=np.float32),
             ),
-            "cnr": (
+            "intensity": (
                 ("time", "range"),
-                np.full((azimuth.size, ranges.size), 5.0, dtype=np.float32),
+                np.full((azimuth.size, ranges.size), 2.0, dtype=np.float32),
             ),
-            "doppler_spectrum_width": (
+            "beta": (
+                ("time", "range"),
+                np.full((azimuth.size, ranges.size), 1e-7, dtype=np.float32),
+            ),
+            "delv": (
                 ("time", "range"),
                 np.full((azimuth.size, ranges.size), 0.5, dtype=np.float32),
             ),
-            "relative_beta": (
-                ("time", "range"),
-                np.ones((azimuth.size, ranges.size), dtype=np.float32),
+            "azi": (("time",), azimuth.astype(np.float32)),
+            "zenith": (("time",), np.full(azimuth.size, 15.0, dtype=np.float32)),
+            "nsmpl": ((), np.float32(10.0)),
+            "prf": ((), np.float32(10000.0)),
+            "nqv": ((), np.float32(19.0)),
+            "range_bnds": (
+                ("range", "nv"),
+                np.array([[25.0, 75.0], [75.0, 125.0]], dtype=np.float32),
             ),
-            "azimuth": (("time",), azimuth.astype(np.float32)),
-            "elevation": (
-                ("time",),
-                np.full(azimuth.size, 75.0, dtype=np.float32),
-            ),
-            "range_gate_length": ((), np.float32(50.0)),
         },
         coords={
             "time": time,
             "range": ranges,
+            "nv": np.array([0, 1], dtype=np.int8),
         },
     )
 
 
 def test_retrieve_windcube_vad_returns_level2_dataset() -> None:
-    source = synthetic_dataset()
+    source = normalized_level1_dataset()
     original = source.copy(deep=True)
 
     result = retrieve_windcube_vad(source, make_context())
@@ -140,20 +144,7 @@ def test_read_windcube_scan_files_uses_explicit_reader_settings(
     class DummyFiles:
         pass
 
-    expected_dataset = xr.Dataset(
-        coords={
-            "time": [0.0],
-            "range": [50.0],
-        },
-        data_vars={
-            "azimuth": (("time",), np.array([0.0], dtype=np.float32)),
-            "elevation": (("time",), np.array([75.0], dtype=np.float32)),
-            "cnr": (("time", "range"), np.array([[5.0]], dtype=np.float32)),
-            "radial_wind_speed": (("time", "range"), np.array([[1.0]], dtype=np.float32)),
-            "doppler_spectrum_width": (("time", "range"), np.array([[0.5]], dtype=np.float32)),
-            "range_gate_length": ((), np.float32(50.0)),
-        },
-    )
+    expected_dataset = normalized_level1_dataset()
 
     def fake_filelist_to_hpl_files(files: list[Path], inst_type: str) -> DummyFiles:
         captured["files"] = files
@@ -210,7 +201,7 @@ def test_read_windcube_scan_files_uses_explicit_reader_settings(
 def test_process_windcube_vad_files_returns_level1_and_level2(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    level1 = synthetic_dataset()
+    level1 = normalized_level1_dataset()
     level2 = xr.Dataset(
         data_vars={
             "wspeed": (("time", "height"), np.array([[1.0]], dtype=np.float32)),

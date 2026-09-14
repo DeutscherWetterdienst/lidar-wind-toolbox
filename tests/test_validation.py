@@ -3,32 +3,40 @@ import pytest
 import xarray as xr
 
 from lidar_wind_toolbox.exceptions import InputDatasetError
-from lidar_wind_toolbox.validation import validate_windcube_vad_input
+from lidar_wind_toolbox.validation import validate_normalized_windcube_level1
 
 
 def _dataset() -> xr.Dataset:
     return xr.Dataset(
         data_vars={
-            "radial_wind_speed": (("time", "range"), np.ones((2, 2))),
-            "cnr": (("time", "range"), np.ones((2, 2))),
-            "doppler_spectrum_width": (("time", "range"), np.ones((2, 2))),
-            "azimuth": (("time",), np.array([0.0, 90.0])),
-            "elevation": (("time",), np.array([75.0, 75.0])),
-            "range_gate_length": ((), 50.0),
+            "dv": (("time", "range"), np.ones((2, 2))),
+            "intensity": (("time", "range"), np.ones((2, 2))),
+            "beta": (("time", "range"), np.ones((2, 2))),
+            "delv": (("time", "range"), np.ones((2, 2))),
+            "azi": (("time",), np.array([0.0, 90.0])),
+            "zenith": (("time",), np.array([15.0, 15.0])),
+            "nsmpl": ((), 10.0),
+            "prf": ((), 10000.0),
+            "nqv": ((), 19.0),
+            "range_bnds": (
+                ("range", "nv"),
+                np.array([[25.0, 75.0], [75.0, 125.0]]),
+            ),
         },
         coords={
             "time": np.array([1_700_000_000.0, 1_700_000_010.0]),
             "range": np.array([50.0, 100.0]),
+            "nv": np.array([0, 1]),
         },
     )
 
 
-def test_validate_windcube_vad_input_accepts_expected_dataset() -> None:
-    validate_windcube_vad_input(_dataset())
+def test_validate_normalized_windcube_level1_accepts_expected_dataset() -> None:
+    validate_normalized_windcube_level1(_dataset())
 
 
-def test_validate_windcube_vad_input_rejects_missing_variable() -> None:
-    dataset = _dataset().drop_vars("cnr")
+def test_validate_normalized_windcube_level1_rejects_missing_variable() -> None:
+    dataset = _dataset().drop_vars("beta")
 
-    with pytest.raises(InputDatasetError, match="cnr"):
-        validate_windcube_vad_input(dataset)
+    with pytest.raises(InputDatasetError, match="beta"):
+        validate_normalized_windcube_level1(dataset)

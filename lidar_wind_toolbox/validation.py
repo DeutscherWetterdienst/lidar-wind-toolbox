@@ -11,30 +11,39 @@ def require_variables(dataset: xr.Dataset, names: set[str]) -> None:
         raise InputDatasetError(f"Dataset is missing required variables: {sorted(missing)!r}")
 
 
-def validate_windcube_vad_input(dataset: xr.Dataset) -> None:
-    """Validate the minimum internal contract for WindCube VAD retrieval."""
+def validate_normalized_windcube_level1(dataset: xr.Dataset) -> None:
+    """Validate the normalized internal Level-1 contract for WindCube retrieval."""
 
     require_variables(
         dataset,
         {
             "time",
             "range",
-            "azimuth",
-            "elevation",
-            "cnr",
-            "radial_wind_speed",
-            "doppler_spectrum_width",
-            "range_gate_length",
+            "dv",
+            "intensity",
+            "beta",
+            "azi",
+            "zenith",
+            "nsmpl",
+            "prf",
+            "nqv",
+            "range_bnds",
         },
     )
 
-    for name in ("cnr", "radial_wind_speed", "doppler_spectrum_width"):
+    for name in ("dv", "intensity", "beta"):
         if dataset[name].dims != ("time", "range"):
             raise InputDatasetError(f"{name} must have dimensions ('time', 'range')")
 
-    for name in ("azimuth", "elevation"):
+    if "delv" in dataset.variables and dataset["delv"].dims != ("time", "range"):
+        raise InputDatasetError("delv must have dimensions ('time', 'range')")
+
+    for name in ("azi", "zenith"):
         if dataset[name].dims != ("time",):
             raise InputDatasetError(f"{name} must have dimensions ('time',)")
 
     if dataset["range"].dims != ("range",):
         raise InputDatasetError("range must have dimensions ('range',)")
+
+    if dataset["range_bnds"].dims != ("range", "nv"):
+        raise InputDatasetError("range_bnds must have dimensions ('range', 'nv')")
