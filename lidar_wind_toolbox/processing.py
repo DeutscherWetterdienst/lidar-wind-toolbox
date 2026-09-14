@@ -7,7 +7,7 @@ import numpy as np
 import xarray as xr
 
 from lidar_wind_toolbox.exceptions import UnsupportedScanTypeError
-from lidar_wind_toolbox.hpl_files.hpl_files import hpl_files
+from lidar_wind_toolbox.hpl_files import hpl_files
 from lidar_wind_toolbox.main_proc import process_dataset
 from lidar_wind_toolbox.metadata import add_global_metadata
 from lidar_wind_toolbox.models import ProcessingContext, WindCubeLevel1ReaderSettings

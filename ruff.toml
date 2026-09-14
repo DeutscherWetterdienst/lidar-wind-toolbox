@@ -5,9 +5,9 @@ line-length = 100
 extend-select=["I"]
 exclude = [
     "lidar_wind_toolbox/plot_helpers.py",
-    "lidar_wind_toolbox/config/config.py",
+    "lidar_wind_toolbox/config.py",
     "lidar_wind_toolbox/command_line.py",
-    "lidar_wind_toolbox/hpl_files/hpl_files.py",
+    "lidar_wind_toolbox/hpl_files.py",
     "lidar_wind_toolbox/main_proc.py",
     "lidar_wind_toolbox/hpl2netCDF_client.py",
     "lidar_wind_toolbox/wind_calc.py",
