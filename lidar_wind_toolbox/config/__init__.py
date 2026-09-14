@@ -1,2 +1,3 @@
-import lidar_wind_toolbox.hpl2netCDF_client
 from lidar_wind_toolbox.config import config
+
+__all__ = ["config"]

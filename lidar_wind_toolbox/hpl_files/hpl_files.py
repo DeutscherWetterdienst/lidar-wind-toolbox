@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-import lidar_wind_toolbox as proc
+from lidar_wind_toolbox.wind_calc import calc_sigma_single
 
 
 class hpl_files(object):
@@ -563,7 +563,7 @@ class hpl_files(object):
         ## calculate SNR in dB
         SNR_dB = 10 * np.log10(SNR_tmp.astype(complex)).real
         ## calculate measurement uncertainty, with consensus indices
-        sigma_tmp = proc.hpl2netCDF_client.calc_sigma_single(
+        sigma_tmp = calc_sigma_single(
             SNR_dB,
             int(mheader["Gate length (pts)"]),
             int(confDict["PULSES_PER_DIRECTION"]),
@@ -908,7 +908,7 @@ class hpl_files(object):
             zenith = np.array([90 - ds_root.sweep_fixed_angle.data[0]] * ds_tmp.time.size)
 
             ## calculate measurement uncertainty
-            sigma_tmp = proc.hpl2netCDF_client.calc_sigma_single(
+            sigma_tmp = calc_sigma_single(
                 ds_tmp.cnr.data,
                 int(confDict["NUMBER_OF_GATE_POINTS"]),
                 int(confDict["PULSES_PER_DIRECTION"]),

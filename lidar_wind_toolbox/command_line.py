@@ -39,7 +39,6 @@ def valid_date(s):
 
 
 def main():
-    default_path = "C:/Users/mkayser/Documents/Notebooks/wl_testing/wl_44_markus.conf"
     parser = argparse.ArgumentParser(
         description="Process Halo photonics Doppler lidar Client",
         formatter_class=argparse.RawTextHelpFormatter,
@@ -50,7 +49,7 @@ def main():
         dest="path2config",
         type=str,
         help="path to configuration file",
-        default=default_path,
+        required=True,
     )
     parser.add_argument(
         "-d",

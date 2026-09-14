@@ -18,6 +18,7 @@ dev = [
     "deptry>=0.24.0",
     "mypy>=1.19.1",
     "netcdf4>=1.7.4",
+    "pandas-stubs>=3.0.5.260730",
     "pre-commit>=4.5.1",
     "pytest>=9.1.1",
     "ruff==0.15.4",

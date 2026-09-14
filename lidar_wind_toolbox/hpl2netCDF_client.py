@@ -118,6 +118,16 @@ def import_lvl2(date_chosen, confDict):
 
 ### the actual processing is done in this class
 class hpl2netCDFClient(object):
+    """Legacy compatibility wrapper.
+
+    Deprecated in favor of the typed Python API in `lidar_wind_toolbox.processing`.
+    New code should use:
+      - read_windcube_scan_files()
+      - retrieve_windcube_vad()
+      - process_windcube_vad_files()
+      - dataset-based plotting helpers
+    """
+
     def __init__(self, config_dir, cmd, date2proc):
         self.config_dir = config_dir
         self.cmd = cmd

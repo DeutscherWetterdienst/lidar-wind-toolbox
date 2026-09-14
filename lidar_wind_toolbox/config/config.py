@@ -12,11 +12,11 @@ class config(object):
         self.content = content
 
     @staticmethod
-    def gen_confDict(
-        arg=True, url="C:/Users/mkayser/Documents/Notebooks/wl_testing/wl_44_markus.conf"
-    ):
-        """reading the config into a dictionary for easy processing at later stages. If no other URL is
-        specified, use the above as default."""
+    def gen_confDict(arg=True, url=None):
+        """reading the config into a dictionary for easy processing at later stages."""
+        if url is None:
+            raise ValueError("configuration path is required")
+
         confFile = [Path(url)]
         for file_name in confFile:
             with open(str(file_name)) as reader:
