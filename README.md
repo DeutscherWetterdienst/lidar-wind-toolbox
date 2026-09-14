@@ -1,63 +1,134 @@
-# Documentation
+# lidar_wind_toolbox
 
-##### Table of Contents  
-- [Description](#desc)  
-- [Usage](#usage) 
-    - [Generic example](#generic_example)
-    - [Streamline VAD](#streamline_example)
-    - [Windcube DBS](#windcube_example)
-	- [Other scan types](#other_scans)
+Processing tools for Doppler wind lidar data.
 
+The package is currently transitioning away from the historic config-file-driven
+workflow toward an explicit Python API with typed inputs and minimal side effects.
 
-## Description
-Python software package for standardized processing Doppler wind lidar data. (Note: the client is originally designed for Halo Photonics systems, but the latest version makes it applicaple to windcube lidars. Please, read the corresponding settings sections.)
+## Current status
 
-## Usage
-1.	Go to the directory where the package is located and install the client via `pip install`. If installation was not successful, please contact Markus.Kayser@dwd.de
-  
-2.	After the successful installation the client can be used through parsing the following commands:
+The preferred interface is the typed Python API:
 
-	You need to specify a valid date with either `-d` or `-date` and a command to execute with `-c` or `-cmd`.
-	The following commands are valid:
-		- `hpl_l1` creates a daily netCDF file of lvl1 .hpl-files.
-		- `l1_l2` processes a daily lvl1 netCDF file according to the VAD retrieval described in Päschke et al. [2015].
-		- `hpl_l1_l2` creates daily lvl1 and lvl2 netCDF files from .hpl-files.
-        Note: In case of lvl2 processing you can add `...wql` to the command to create quicklooks.
-	You have to specify a custom configuration file in order for the routines to locate .hpl-files and give directories of lvl1 	and lvl2 netCDFs as well as of quicklooks.
-    
-    The routines will create a data path corresponding to the path specified in the configuration file plus the time 		information, i.e. `yourpath/YYYY/YYYYMM`.
-	This is done with the command `-u` or `-url`, followed by the path to the configuration file, including the file name.
-    
-### Geneneric example
-The use can start processing with the client by inserting the following command into the terminal.
-		`hpl2netCDF-client -u "configuration file" -d "specify date as YYYY-MM-DD" -c "cmd"`	
-If an error occurs at this stage, please make sure that the package is installed and that python 3.XX is in the system path.
+- pass an in-memory `xarray.Dataset`
+- pass explicit metadata and retrieval settings as Python objects
+- receive a processed `xarray.Dataset`
+- write files only in your calling application
 
-### Streamline VAD
-The user needs to adjust the configuration file in the following way:
-1. Make sure that "SCAN_TYPE" refers to the section of the filenames, either "VAD" or "User" plus a number. Otherwise the client is not able to find the desired .hpl-files.
-2. Please copy the meta data attributes that can found in the .hpl header into the corresponding entries of the configuration file, i.e. number of gates, range gate length, pulses/ray, etc.
-3. Adjust the processing parameters, used for filtering and quality control, to the user needs. These are: "AVG_MIN", "CN_THRESHOLD", "CNS_RANGE", "CNS_PERCENTAGE", "SNR_THRESHOLD", "N_VRAD_THRESHOLD", and "R2_THRESHOLD".
-An example file is part of this repository, just have a look at "wl_44_cns_60_snr22.conf". This file is used to process a VAD with 24 directions applying consensus and snr filtering.
+The legacy config-file-based workflow is still present, but it is considered
+transitional.
 
-### Windcube DBS
-With the latest windcube release in October 2022 a new system software was introduced that now enables VAD scan pattern and also an additional range mode, called "TP-mode". This can create issues with the processing client not yet accounted for. Therefore, windcube-users are strongly encouraged to test this toolbox and report issues on github. Helping users to setup processing of windcube DBS data, we recommend the following steps:
-1. Look at the individual windcube netCDF files and make note of the scan type, here dbs, the range gate length and wether or not, TP-mode is active. The latter two are found at the end of the file name. Set the SCAN_TYPE entry to "DBS_TP" and the RANGE_GATE_LENGTH to whatever number the filename states, e.g. 50 for 50 m length.
-2. Check the individual netCDFs to fill in the remaining meta data, i.e. number of gates, etc. Note, that the current software leaves out a lot of the meta data. So the user has to fill in the gaps.
-3. Make sure that the DBS configuration states NUMBER_OF_DIRECTIONS=			4 and that the N_VRAD_THRESHOLD is either 3 or 4. Generally, a threshold greater than the number of directions results in a LV2 file containing only NaN-values.
-Note, if your individual filenames do not contain "TP", the SCAN_TYPE entry should be just "DBS". Please look at the example configuration file "wc_233_DBS_cns_60_snr00.conf" and adjust it to your needs.
+At the moment the public processing entry point is best understood as a
+VAD wind-profile retrieval for WindCube radial data.
 
-### Other scan types
-Even though a LV2-processing for other scan types is not implemented, users can still make use of this toolbox to compile daily LV1 netCDFs. Therefor, they have to follow the previously mentioned steps of identifying configuration parameters from the filenames and from meta data contained in the files. The following table helps the users to make these adjustments and states what products are available.
+## Installation
 
-| System     |                       SCAN_TYPE                        | LV1 | LV2 | Quicklooks |
-|:-----------|:------------------------------------------------------:|:---:|:---:|-----------:|
-| Streamline |                    VAD <br /> UserX                    | yes | yes |  LV1 / LV2 |
-| Streamline |                    DBS <br /> UserX                    | yes | yes |  LV1 / LV2 |
-| Streamline |                         Stare                          | yes | no  |        LV1 |
-| Streamline |                          RHI                           | yes | no  |         no |
-| Windcube   | fixed_VAD <br /> fixed_VAD_TP <br /> VAD <br /> VAD_TP | yes | yes |  LV1 / LV2 |
-| Windcube   |                   DBS <br /> DBS_TP                    | yes | yes |  LV1 / LV2 |
-| Windcube   |          fixed/Stare <br /> fixed_TP/Stare_TP          | yes | no  |        LV1 |
-| Windcube   |                   RHI <br /> RHI_TP                    | yes | no  |         no |
-| Windcube   |                   PPI <br /> PPI_TP                    | yes | no  |         no |
+```bash
+uv sync
+```
+
+## Primary API
+
+```python
+from datetime import UTC, datetime
+
+from lidar_wind_toolbox import (
+    InstrumentMetadata,
+    ProcessingContext,
+    ProcessingWindow,
+    ProductMetadata,
+    WindRetrievalSettings,
+    retrieve_windcube_vad,
+)
+
+context = ProcessingContext(
+    window=ProcessingWindow(
+        start=datetime(2026, 1, 1, 0, 0, tzinfo=UTC),
+        end=datetime(2026, 1, 2, 0, 0, tzinfo=UTC),
+    ),
+    retrieval=WindRetrievalSettings(
+        number_of_directions=12,
+        averaging_minutes=10,
+        consensus_range_mps=3.0,
+        consensus_percentage=60.0,
+        snr_threshold_db=0.0,
+        minimum_radial_velocities=10,
+        condition_number_threshold=10.0,
+        r2_threshold=0.95,
+        blindzone_gates=0,
+    ),
+    instrument=InstrumentMetadata(
+        system="windcube",
+        instrument_type="WindCube Scan",
+        instrument_serial_number="197",
+        latitude_deg=46.8,
+        longitude_deg=6.9,
+        altitude_m=490.0,
+        wavelength_m=1.552e-6,
+    ),
+    product=ProductMetadata(
+        title="Wind profile",
+        institution="Example Institute",
+        site_location="Example Site",
+    ),
+    scan_type="vad",
+    processing_version="0.1.0",
+    processed_at=datetime.now(UTC),
+)
+
+result = retrieve_windcube_vad(dataset, context)
+```
+
+The function does not read input files or write output files.
+
+## Legacy-to-new mapping
+
+The old `.conf` files mixed together:
+
+- instrument metadata
+- scientific retrieval settings
+- output metadata
+- file paths
+
+The new API replaces those values with explicit Python objects.
+
+### Typical mapping
+
+| Legacy key             | New API field                                      |
+|------------------------|----------------------------------------------------|
+| `SYSTEM`               | `InstrumentMetadata.system`                        |
+| `SYSTEM_LATITUDE`      | `InstrumentMetadata.latitude_deg`                  |
+| `SYSTEM_LONGITUDE`     | `InstrumentMetadata.longitude_deg`                 |
+| `SYSTEM_ALTITUDE`      | `InstrumentMetadata.altitude_m`                    |
+| `SYSTEM_WAVELENGTH`    | `InstrumentMetadata.wavelength_m`                  |
+| `NUMBER_OF_DIRECTIONS` | `WindRetrievalSettings.number_of_directions`       |
+| `AVG_MIN`              | `WindRetrievalSettings.averaging_minutes`          |
+| `CNS_RANGE`            | `WindRetrievalSettings.consensus_range_mps`        |
+| `CNS_PERCENTAGE`       | `WindRetrievalSettings.consensus_percentage`       |
+| `SNR_THRESHOLD`        | `WindRetrievalSettings.snr_threshold_db`           |
+| `N_VRAD_THRESHOLD`     | `WindRetrievalSettings.minimum_radial_velocities`  |
+| `CN_THRESHOLD`         | `WindRetrievalSettings.condition_number_threshold` |
+| `R2_THRESHOLD`         | `WindRetrievalSettings.r2_threshold`               |
+| `BLINDZONE_GATES`      | `WindRetrievalSettings.blindzone_gates`            |
+| `NC_TITLE`             | `ProductMetadata.title`                            |
+| `NC_INSTITUTION`       | `ProductMetadata.institution`                      |
+| `NC_SITE_LOCATION`     | `ProductMetadata.site_location`                    |
+
+Filesystem paths are intentionally no longer part of the typed processing API.
+
+## Running tests
+
+```bash
+uv run pytest
+```
+
+## Test status
+
+Automated tests currently cover:
+
+- typed models
+- metadata handling
+- validation of the minimum WindCube dataset contract
+- selected wind-calculation helpers
+- a synthetic conical-scan processing smoke test
+
+Validation against real instrument data is still required before operational use.
