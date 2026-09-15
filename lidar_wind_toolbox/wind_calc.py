@@ -9,10 +9,8 @@ def build_Amatrix(azimuth_vec, elevation_vec):
         "ij -> ji",
         np.vstack(
             [
-                np.sin((np.pi / 180) * (azimuth_vec))
-                * np.sin((np.pi / 180) * (90 - elevation_vec)),
-                np.cos((np.pi / 180) * (azimuth_vec))
-                * np.sin((np.pi / 180) * (90 - elevation_vec)),
+                np.sin((np.pi / 180) * azimuth_vec) * np.sin((np.pi / 180) * (90 - elevation_vec)),
+                np.cos((np.pi / 180) * azimuth_vec) * np.sin((np.pi / 180) * (90 - elevation_vec)),
                 np.cos((np.pi / 180) * (90 - elevation_vec)),
             ]
         ),
@@ -229,7 +227,7 @@ def consensus(Vr, SNR, BETA, CNS_range, CNS_percentage, SNR_threshold, B):
         Vr_m[-(np.argmax(np.flipud(SUMlt), axis=0) + 1), np.arange(0, SUMlt.shape[1])],
     )
     mask_m = abs(Vr_m.filled(999.0) - Vr_maxim.filled(-999.0)) < CNS_range
-    Vr_m = np.ma.masked_where(~(mask_m), Vr_m.filled(-999.0))
+    Vr_m = np.ma.masked_where(~mask_m, Vr_m.filled(-999.0))
     MEAN = Vr_m.sum(axis=0).filled(np.nan) / np.max(SUMlt, axis=0)
     IDX = mask_m
     UNC = np.nanstd(Vr_m - MEAN.T, axis=0)

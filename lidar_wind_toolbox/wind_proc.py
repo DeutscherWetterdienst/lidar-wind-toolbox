@@ -125,7 +125,7 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
         print("processed " + str(np.floor(100 * kk / (len(calc_idx) - 1))) + " %")
         n_rays = int(confDict["NUMBER_OF_DIRECTIONS"])
         indicator, n_rays, azi_mean, azi_edges = find_num_dir(n_rays, calc_idx, azimuth, kk)
-        r_phi = 360 / (n_rays) / 2
+        r_phi = 360 / n_rays / 2
         if ~indicator:
             print("some issue with the data", n_rays, len(azi_mean), time_start[kk])
             continue
@@ -719,7 +719,7 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
         # read lidar parameters
         n_rays = int(confDict["NUMBER_OF_DIRECTIONS"])
         indicator, n_rays, azi_mean, azi_edges = find_num_dir(n_rays, calc_idx, azimuth, kk)
-        r_phi = 360 / (n_rays) / 2
+        r_phi = 360 / n_rays / 2
         if ~indicator:
             print("some issue with the data", n_rays, len(azi_mean), time_start[kk])
             continue
