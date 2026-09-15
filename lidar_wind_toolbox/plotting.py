@@ -223,10 +223,26 @@ def plot_level1_backscatter_quicklook(
     mask = np.isnan(z_values)
     masked_z = np.ma.masked_where(mask, z_values)
 
-    has_beta = ("relative_beta" in list(plot_dataset.keys())) or (
-        "beta" in list(plot_dataset.keys())
+    # Determine whether true backscatter data exists BEFORE ql_helper mutates the dataset
+    has_beta = ("relative_beta" in plot_dataset.variables) or ("beta" in plot_dataset.variables)
+
+    config_dict = {"SYSTEM": system}
+    beta_max, time_mean, range_vec, elevation, vmin, vmax = ql_helper(plot_dataset, config_dict)
+
+    x_mesh, y_mesh = np.meshgrid(
+        mdates.date2num(pd.to_datetime(time_mean)),
+        range_vec * np.sin(np.pi / 180 * elevation.mean()),
     )
-    if has_beta:
+    z_values = np.copy(beta_max)
+
+    if np.all(np.isnan(z_values)):
+        return fig
+
+    mask = np.isnan(z_values)
+    masked_z = np.ma.masked_where(mask, z_values)
+
+    # Use LogNorm only for positive physical backscatter; linear norm for CNR in dB (vmin <= 0)
+    if has_beta and vmin > 0:
         color_mesh = ax.pcolormesh(
             x_mesh.T,
             y_mesh.T,
