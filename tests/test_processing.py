@@ -311,3 +311,14 @@ def test_process_windcube_vad_files_returns_level1_and_level2(
 
     assert result_level1 is level1
     assert result_level2 is level2
+
+
+def test_retrieve_windcube_vad_accepts_gate_index_dimension() -> None:
+    source = native_windcube_level1_dataset()
+    # Rename dimension from range to gate_index as in real WindCube files
+    source = source.rename_dims({"range": "gate_index"})
+
+    result = retrieve_windcube_vad(source, make_context())
+
+    assert "wspeed" in result.data_vars
+    assert result.sizes["height"] == 2

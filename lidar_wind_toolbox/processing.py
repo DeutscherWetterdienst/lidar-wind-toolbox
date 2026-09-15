@@ -89,9 +89,21 @@ def retrieve_windcube_vad(
     _validate_daily_window(context)
     validate_normalized_windcube_level1(dataset)
 
+    # Determine gate count across different schemas (gate_index or range dimension)
+    if "range" in dataset.sizes:
+        number_of_gates = dataset.sizes["range"]
+    elif "gate_index" in dataset.sizes:
+        number_of_gates = dataset.sizes["gate_index"]
+    elif "radial_wind_speed" in dataset.variables:
+        number_of_gates = dataset["radial_wind_speed"].shape[1]
+    elif "dv" in dataset.variables:
+        number_of_gates = dataset["dv"].shape[1]
+    else:
+        raise ValueError("Cannot determine number of range gates from dataset dimensions")
+
     legacy_config = _legacy_config(
         context,
-        number_of_gates=dataset.sizes["range"],
+        number_of_gates=number_of_gates,
     )
 
     processing_day = context.window.start.astimezone(UTC).replace(tzinfo=None)
@@ -278,8 +290,9 @@ def _to_legacy_retrieval_dataset(dataset: xr.Dataset) -> xr.Dataset:
                 .mean()
                 .astype(np.float32)
             )
-        elif result.sizes.get("range", 0) > 1:
-            result["range_gate_length"] = result["range"].diff("range").mean().astype(np.float32)
+        elif "range" in result.variables and result["range"].size > 1:
+            dim_name = result["range"].dims[0]
+            result["range_gate_length"] = result["range"].diff(dim_name).mean().astype(np.float32)
         else:
             raise ValueError("Cannot infer range_gate_length from the dataset.")
 
