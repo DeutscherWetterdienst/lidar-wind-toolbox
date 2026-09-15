@@ -19,7 +19,6 @@ def ql_helper(ds, confDict):
 
     # use equal names
     try:
-        ds.elevation
         ds = ds.rename({"azimuth": "azi", "relative_beta": "beta"})
     except:
         ds["elevation"] = 90 - ds.zenith
