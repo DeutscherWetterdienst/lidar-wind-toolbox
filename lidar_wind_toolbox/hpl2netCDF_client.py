@@ -86,8 +86,8 @@ def import_lvl1(date_chosen: datetime.datetime, confDict: dict[str, str]) -> xr.
     except FileNotFoundError:
         print("no such file exists: " + path.name + "... .nc")
         print("unable to continue processing!")
-    except:
-        print("something went wrong!")
+    except Exception as exc:
+        print(f"something went wrong: {exc}")
 
 
 def import_lvl2(date_chosen: datetime.datetime, confDict: dict[str, str]) -> xr.Dataset:
@@ -116,8 +116,8 @@ def import_lvl2(date_chosen: datetime.datetime, confDict: dict[str, str]) -> xr.
     except FileNotFoundError:
         print("no such file exists: " + path.name + "... .nc")
         print("unable to continue processing!")
-    except:
-        print("something went wrong!")
+    except Exception as exc:
+        print(f"something went wrong: {exc}")
 
 
 ### the actual processing is done in this class
@@ -702,8 +702,10 @@ class hpl2netCDFClient(object):
         print(path)
         try:
             path.unlink()
-        except:
+        except FileNotFoundError:
             print("no such file exists: " + path.name + "... .nc")
+        except Exception as exc:
+            print(f"could not remove level-1 file: {exc}")
 
     def nrtlvl2(self) -> None:
         # get configuration
@@ -732,8 +734,10 @@ class hpl2netCDFClient(object):
             print("!!!multiple files found!!!, only first is processed!")
         try:
             ds_tmp = xr.open_dataset(mylist[0])
-        except:
+        except Exception as exc:
             print("no such file exists: " + path.name + "... .nc")
+            print(f"unable to open near-real-time level-1 file: {exc}")
+            return
         if not ds_tmp:
             print("unable to continue processing!")
         else:
