@@ -14,36 +14,35 @@ def require_variables(dataset: xr.Dataset, names: set[str]) -> None:
 def validate_normalized_windcube_level1(dataset: xr.Dataset) -> None:
     """Validate the normalized internal Level-1 contract for WindCube retrieval."""
 
-    require_variables(
-        dataset,
-        {
-            "time",
-            "range",
-            "dv",
-            "intensity",
-            "beta",
-            "azi",
-            "zenith",
-            "nsmpl",
-            "prf",
-            "nqv",
-            "range_bnds",
-        },
+    # Native WindCube VAD files use the original WindCube variable names.
+    if "radial_wind_speed" in dataset.variables:
+        require_variables(
+            dataset,
+            {
+                "time",
+                "radial_wind_speed",
+                "azimuth",
+                "elevation",
+                "cnr",
+                "doppler_spectrum_width",
+            },
+        )
+        return
+
+    # Some legacy readers produce the normalized internal variable names.
+    if "dv" in dataset.variables:
+        require_variables(
+            dataset,
+            {
+                "time",
+                "dv",
+                "azi",
+                "zenith",
+                "intensity",
+            },
+        )
+        return
+
+    raise InputDatasetError(
+        "Dataset must contain either 'radial_wind_speed' or 'dv' as the radial velocity variable."
     )
-
-    for name in ("dv", "intensity", "beta"):
-        if dataset[name].dims != ("time", "range"):
-            raise InputDatasetError(f"{name} must have dimensions ('time', 'range')")
-
-    if "delv" in dataset.variables and dataset["delv"].dims != ("time", "range"):
-        raise InputDatasetError("delv must have dimensions ('time', 'range')")
-
-    for name in ("azi", "zenith"):
-        if dataset[name].dims != ("time",):
-            raise InputDatasetError(f"{name} must have dimensions ('time',)")
-
-    if dataset["range"].dims != ("range",):
-        raise InputDatasetError("range must have dimensions ('range',)")
-
-    if dataset["range_bnds"].dims != ("range", "nv"):
-        raise InputDatasetError("range_bnds must have dimensions ('range', 'nv')")

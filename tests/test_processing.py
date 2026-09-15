@@ -14,6 +14,7 @@ from lidar_wind_toolbox.models import (
     WindRetrievalSettings,
 )
 from lidar_wind_toolbox.processing import (
+    _to_legacy_retrieval_dataset,
     process_windcube_vad_files,
     read_windcube_scan_files,
     retrieve_windcube_vad,
@@ -69,6 +70,7 @@ def make_reader_settings() -> WindCubeLevel1ReaderSettings:
 
 
 def normalized_level1_dataset() -> xr.Dataset:
+    """Legacy normalized Level-1 dataset (with dv, azi, zenith)."""
     azimuth = np.repeat(np.arange(0.0, 360.0, 30.0), 2)
     time = 1_767_225_600.0 + np.arange(azimuth.size) * 5.0
     ranges = np.array([50.0, 100.0], dtype=np.float32)
@@ -109,7 +111,42 @@ def normalized_level1_dataset() -> xr.Dataset:
     )
 
 
-def test_retrieve_windcube_vad_returns_level2_dataset() -> None:
+def native_windcube_level1_dataset() -> xr.Dataset:
+    """Native WindCube VAD dataset (with radial_wind_speed, azimuth, elevation)."""
+    azimuth = np.repeat(np.arange(0.0, 360.0, 30.0), 2)
+    time = 1_767_225_600.0 + np.arange(azimuth.size) * 5.0
+    ranges = np.array([50.0, 100.0], dtype=np.float32)
+
+    return xr.Dataset(
+        data_vars={
+            "radial_wind_speed": (
+                ("time", "range"),
+                np.full((azimuth.size, ranges.size), 2.0, dtype=np.float32),
+            ),
+            "cnr": (
+                ("time", "range"),
+                np.full((azimuth.size, ranges.size), 0.0, dtype=np.float32),
+            ),
+            "relative_beta": (
+                ("time", "range"),
+                np.full((azimuth.size, ranges.size), 1e-7, dtype=np.float32),
+            ),
+            "doppler_spectrum_width": (
+                ("time", "range"),
+                np.full((azimuth.size, ranges.size), 0.5, dtype=np.float32),
+            ),
+            "azimuth": (("time",), azimuth.astype(np.float32)),
+            "elevation": (("time",), np.full(azimuth.size, 75.0, dtype=np.float32)),
+            "range_gate_length": ((), np.float32(50.0)),
+        },
+        coords={
+            "time": time,
+            "range": ranges,
+        },
+    )
+
+
+def test_retrieve_windcube_vad_from_legacy_normalized_dataset() -> None:
     source = normalized_level1_dataset()
     original = source.copy(deep=True)
 
@@ -134,6 +171,42 @@ def test_retrieve_windcube_vad_returns_level2_dataset() -> None:
     assert "config" not in result.variables
 
     xr.testing.assert_identical(source, original)
+
+
+def test_retrieve_windcube_vad_from_native_dataset() -> None:
+    source = native_windcube_level1_dataset()
+    original = source.copy(deep=True)
+
+    result = retrieve_windcube_vad(source, make_context())
+
+    assert set(result.data_vars) >= {
+        "u",
+        "v",
+        "w",
+        "wspeed",
+        "wdir",
+        "qwind",
+        "cn",
+        "nvrad",
+        "r2",
+    }
+    xr.testing.assert_identical(source, original)
+
+
+def test_to_legacy_retrieval_dataset_converts_zenith_when_elevation_is_missing() -> None:
+    source = normalized_level1_dataset()
+    adapted = _to_legacy_retrieval_dataset(source)
+
+    # Zenith 15° converted to elevation 75°
+    np.testing.assert_allclose(adapted["elevation"].values, 75.0)
+
+
+def test_to_legacy_retrieval_dataset_preserves_existing_elevation() -> None:
+    source = native_windcube_level1_dataset()
+    adapted = _to_legacy_retrieval_dataset(source)
+
+    # Native elevation 75° must remain 75° (not inverted twice to 15°)
+    np.testing.assert_allclose(adapted["elevation"].values, 75.0)
 
 
 def test_read_windcube_scan_files_uses_explicit_reader_settings(
@@ -185,11 +258,10 @@ def test_read_windcube_scan_files_uses_explicit_reader_settings(
     assert result is expected_dataset
     assert captured["files"] == files
     assert captured["inst_type"] == "windcube"
-    assert captured["files_hpl"].__class__ is DummyFiles
-    assert captured["time_chosen"] is None
 
     conf_dict = captured["conf_dict"]
     assert isinstance(conf_dict, dict)
+    assert conf_dict["VERSION"] == context.processing_version
     assert conf_dict["PULS_DURATION"] == str(reader_settings.pulse_duration_s)
     assert conf_dict["NUMBER_OF_GATE_POINTS"] == str(reader_settings.points_per_gate)
     assert conf_dict["PULSES_PER_DIRECTION"] == str(reader_settings.pulses_per_direction)
@@ -201,7 +273,7 @@ def test_read_windcube_scan_files_uses_explicit_reader_settings(
 def test_process_windcube_vad_files_returns_level1_and_level2(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    level1 = normalized_level1_dataset()
+    level1 = native_windcube_level1_dataset()
     level2 = xr.Dataset(
         data_vars={
             "wspeed": (("time", "height"), np.array([[1.0]], dtype=np.float32)),

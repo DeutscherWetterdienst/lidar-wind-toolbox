@@ -232,35 +232,45 @@ def _legacy_config(
 
 
 def _to_legacy_retrieval_dataset(dataset: xr.Dataset) -> xr.Dataset:
-    """Translate the normalized Level-1 dataset to the legacy retrieval variable names."""
+    """Translate supported Level-1 schemas to the legacy retrieval interface."""
 
     result = dataset.copy(deep=False)
 
+    # Convert the legacy normalized names only when the native WindCube
+    # variable is not already present.
     rename_map: dict[str, str] = {}
 
-    if "dv" in result.variables:
+    if "dv" in result.variables and "radial_wind_speed" not in result.variables:
         rename_map["dv"] = "radial_wind_speed"
-    if "azi" in result.variables:
+
+    if "azi" in result.variables and "azimuth" not in result.variables:
         rename_map["azi"] = "azimuth"
-    if "zenith" in result.variables:
-        rename_map["zenith"] = "elevation"
 
     if rename_map:
         result = result.rename(rename_map)
 
-    if "elevation" in result.variables:
-        result["elevation"] = 90 - result["elevation"]
+    # Convert zenith angle to elevation only when the dataset does not
+    # already provide elevation.
+    if "zenith" in result.variables and "elevation" not in result.variables:
+        result["elevation"] = 90.0 - result["zenith"]
 
-    if "intensity" in result.variables:
+    # Derive CNR from intensity for legacy normalized datasets.
+    if "intensity" in result.variables and "cnr" not in result.variables:
         intensity = result["intensity"]
-        result["cnr"] = xr.where(intensity > 0, 10 * np.log10(intensity - 1), np.nan)
+        result["cnr"] = xr.where(
+            intensity > 1.0,
+            10.0 * np.log10(intensity - 1.0),
+            np.nan,
+        )
 
+    # Map legacy backscatter and spectral-width variable names.
     if "beta" in result.variables and "relative_beta" not in result.variables:
         result["relative_beta"] = result["beta"]
 
     if "delv" in result.variables and "doppler_spectrum_width" not in result.variables:
         result["doppler_spectrum_width"] = result["delv"]
 
+    # Infer the range-gate length when it is not explicitly available.
     if "range_gate_length" not in result.variables:
         if "range_bnds" in result.variables:
             result["range_gate_length"] = (
@@ -269,11 +279,8 @@ def _to_legacy_retrieval_dataset(dataset: xr.Dataset) -> xr.Dataset:
                 .astype(np.float32)
             )
         elif result.sizes.get("range", 0) > 1:
-            result["range_gate_length"] = result["range"].diff("range").astype(np.float32).mean()
+            result["range_gate_length"] = result["range"].diff("range").mean().astype(np.float32)
         else:
-            raise ValueError(
-                "Cannot infer range_gate_length from a dataset without range_bnds "
-                "or multiple range coordinates"
-            )
+            raise ValueError("Cannot infer range_gate_length from the dataset.")
 
     return result
