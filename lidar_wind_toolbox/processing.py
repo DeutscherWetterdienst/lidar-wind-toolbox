@@ -204,6 +204,11 @@ def _legacy_config(
     on its returned dictionary.
     """
 
+    def _fmt(val: float | int) -> str:
+        if isinstance(val, float) and val.is_integer():
+            return str(int(val))
+        return str(val)
+
     return {
         "SYSTEM": context.instrument.system,
         "SYSTEM_ID": context.instrument.instrument_serial_number,
@@ -215,10 +220,10 @@ def _legacy_config(
         "NUMBER_OF_DIRECTIONS": str(context.retrieval.number_of_directions),
         "NUMBER_OF_GATES": str(number_of_gates),
         "AVG_MIN": str(context.retrieval.averaging_minutes),
-        "CN_THRESHOLD": str(context.retrieval.condition_number_threshold),
-        "CNS_RANGE": str(context.retrieval.consensus_range_mps),
-        "CNS_PERCENTAGE": str(context.retrieval.consensus_percentage),
-        "SNR_THRESHOLD": str(context.retrieval.snr_threshold_db),
+        "CN_THRESHOLD": _fmt(context.retrieval.condition_number_threshold),
+        "CNS_RANGE": _fmt(context.retrieval.consensus_range_mps),
+        "CNS_PERCENTAGE": _fmt(context.retrieval.consensus_percentage),
+        "SNR_THRESHOLD": _fmt(context.retrieval.snr_threshold_db),
         "N_VRAD_THRESHOLD": str(context.retrieval.minimum_radial_velocities),
         "R2_THRESHOLD": str(context.retrieval.r2_threshold),
         "BLINDZONE_GATES": str(context.retrieval.blindzone_gates),
