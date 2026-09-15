@@ -17,10 +17,6 @@ def build_Amatrix(azimuth_vec, elevation_vec):
     )
 
 
-def VAD_retrieval(azimuth_vec, elevation_vec, Vr):
-    return np.linalg.lstsq(build_Amatrix(azimuth_vec, elevation_vec), Vr, rcond=-1)
-
-
 def uvw_2_spd(uvw, uvw_unc):
     if (np.isfinite(uvw[0]) * np.isfinite(uvw[1])) & (~np.isnan(uvw[0]) * ~np.isnan(uvw[1])):
         speed = np.sqrt((uvw[0]) ** 2.0 + (uvw[1]) ** 2.0)
@@ -64,94 +60,6 @@ def calc_sigma_single(SNR_dB, Mpts, nsmpl, BW, delta_v):
     sigma = np.ma.masked_where(SNR_dB > -5, (a1 * a2 * a3).filled(np.nan)).filled(a3.filled(np.nan))
 
     return sigma
-
-
-def log10_inf(x):
-    result = np.zeros(x.shape)
-    result[x > 0] = np.log10(x[x > 0])
-    result[x < 0] = -float("Inf")
-    return result
-
-
-def consensus_mean(Vr, SNR, CNS_range, CNS_percentage, SNR_threshold):
-    if SNR_threshold < 0:
-        SNR_threshold = 10 ** (SNR_threshold / 10)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        Vr_X = np.expand_dims(Vr, axis=0)
-        AjdM = (abs(np.einsum("ij... -> ji...", Vr_X) - Vr_X) < CNS_range).astype(int)
-        SUMlt = np.sum(AjdM, axis=0)
-        X = np.sum(
-            np.einsum(
-                "il...,lj... -> ij...",
-                AjdM,
-                np.where(
-                    np.sum(SNR > SNR_threshold, axis=0) / SNR.shape[0] >= CNS_percentage / 100,
-                    np.apply_along_axis(
-                        np.diag,
-                        0,
-                        (
-                            SUMlt / np.sum(SNR > SNR_threshold, axis=0) >= CNS_percentage / 100
-                        ).astype(int),
-                    ),
-                    0,
-                ),
-            ),  # [:,:,kk]
-            axis=0,
-        )  # [:,kk]
-        W = np.where(X > 0, X / np.sum(X, axis=0), np.nan)
-        mask = np.isnan(W)
-        Wm = np.ma.masked_where(mask, W)
-        Xm = np.ma.masked_where(mask, Vr)
-        OutCNS = Xm * Wm
-        MEAN = OutCNS.sum(axis=0).filled(np.nan)
-        diff = Vr - MEAN
-        mask_m = abs(diff) < 3
-        Vr_m = np.ma.masked_where(~mask_m, Vr)
-        IDX = mask_m
-        UNC = (Vr_m.max(axis=0) - Vr_m.min(axis=0)).filled(np.nan) / 2
-        return MEAN, IDX, UNC
-
-
-def consensus_median(Vr, SNR, CNS_range, CNS_percentage, SNR_threshold):
-    if SNR_threshold < 0:
-        SNR_threshold = 10 ** (SNR_threshold / 10)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        Vr_X = np.expand_dims(Vr, axis=0)
-        AjdM = (abs(np.einsum("ij... -> ji...", Vr_X) - Vr_X) < CNS_range).astype(int)
-        SUMlt = np.sum(AjdM, axis=0)
-        X = np.sum(
-            np.einsum(
-                "il...,lj... -> ij...",
-                AjdM,
-                np.where(
-                    np.sum(SNR > SNR_threshold, axis=0) / SNR.shape[0] >= CNS_percentage / 100,
-                    np.apply_along_axis(
-                        np.diag,
-                        0,
-                        (
-                            SUMlt / np.sum(SNR > SNR_threshold, axis=0) >= CNS_percentage / 100
-                        ).astype(int),
-                    ),
-                    0,
-                ),
-            ),  # [:,:,kk]
-            axis=0,
-        )  # [:,kk]
-        W = np.where(X > 0, X / np.sum(X, axis=0), np.nan)
-        mask = np.isnan(W)
-        Wm = np.ma.masked_where(mask, W)
-        Xm = np.ma.masked_where(mask, Vr)
-        OutCNS = Xm * Wm
-        MEAN = OutCNS.sum(axis=0).filled(np.nan)
-
-        diff = Vr - MEAN
-        diff = np.ma.masked_values(diff, np.nan)
-        mask_m = (abs(diff) < 3) * (~np.isnan(diff))
-        Vr_m = np.ma.masked_where(~mask_m, Vr)
-        MEAN = np.ma.median(Vr_m, axis=0).filled(np.nan)
-        IDX = ~np.isnan(W)
-        UNC = (Vr_m.max(axis=0) - Vr_m.min(axis=0)).filled(np.nan) / 2
-        return MEAN, IDX, UNC
 
 
 def diff_aa(x, y, c):
@@ -272,16 +180,6 @@ def process(lst, mon):
         return state.n
 
     return {k: list(g) for k, g in it.groupby(lst, grouper_proc)}
-
-
-def get_cycles(lst):
-    ll = 0
-    res = {}
-    for key, lst in process(lst, int(np.median(np.sign(np.diff(np.array(lst)))))).items():
-        id_tmp = np.arange(ll, ll + len(lst))
-        ll += len(lst)
-        res.update({key: {"indices": list(id_tmp), "values": lst}})
-    return res
 
 
 def grouper(iterable, n, fillvalue=None):

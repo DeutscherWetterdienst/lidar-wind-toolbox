@@ -1,10 +1,6 @@
 import numpy as np
 
 
-def pbdist_alt(x_i, x_ip1, L):
-    return (x_ip1 - x_i) - L * np.rint((x_ip1 - x_i) / L)
-
-
 def ql_helper(ds, confDict):
     # define limits for the range of backscatter values
     if confDict["SYSTEM"].lower() == "halo":
