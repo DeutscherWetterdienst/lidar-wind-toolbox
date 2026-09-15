@@ -8,6 +8,7 @@ by Markus Kayser. Non-commercial use only.
 
 import datetime
 from pathlib import Path
+from typing import Literal
 
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
@@ -18,7 +19,7 @@ import pandas as pd
 import xarray as xr
 from matplotlib.ticker import MultipleLocator
 from scipy.linalg import diagsvd
-
+from collections.abc import Sequence
 from .config import config
 from .hpl_files import hpl_files
 from .main_proc import process_dataset, write_netcdf
@@ -33,9 +34,11 @@ from .wind_calc import (
     uvw_2_spd,
 )
 
+ColorKey = Literal["red", "green", "blue", "alpha"]
+
 
 ### functions used for plotting
-def cmap_discretize(cmap, N):
+def cmap_discretize(cmap: mcolors.Colormap, N: int) -> mcolors.Colormap:
     """Return a discrete colormap from the continuous colormap cmap.
 
     cmap: colormap instance, eg. cm.jet.
@@ -46,8 +49,9 @@ def cmap_discretize(cmap, N):
     colors_i = np.concatenate((np.linspace(0, 1.0, N), (0.0, 0.0, 0.0, 0.0)))
     colors_rgba = cmap(colors_i)
     indices = np.linspace(0, 1.0, N + 1)
-    cdict = {}
-    for ki, key in enumerate(("red", "green", "blue")):
+    cdict: dict[ColorKey, Sequence[tuple[float, ...]]] = {}
+    keys: tuple[ColorKey, ...] = ("red", "green", "blue")
+    for ki, key in enumerate(keys):
         cdict[key] = [
             (indices[i], colors_rgba[i - 1, ki], colors_rgba[i, ki]) for i in range(N + 1)
         ]
@@ -56,7 +60,7 @@ def cmap_discretize(cmap, N):
 
 
 ### function for import of processed files
-def import_lvl1(date_chosen, confDict):
+def import_lvl1(date_chosen: datetime.datetime, confDict: dict[str, str]) -> xr.Dataset:
     path = Path(
         confDict["NC_L1_PATH"]
         + "/"
@@ -86,7 +90,7 @@ def import_lvl1(date_chosen, confDict):
         print("something went wrong!")
 
 
-def import_lvl2(date_chosen, confDict):
+def import_lvl2(date_chosen: datetime.datetime, confDict: dict[str, str]) -> xr.Dataset:
     path = Path(
         confDict["NC_L2_PATH"]
         + "/"
@@ -128,21 +132,21 @@ class hpl2netCDFClient(object):
       - dataset-based plotting helpers
     """
 
-    def __init__(self, config_dir, cmd, date2proc):
+    def __init__(self, config_dir: str, cmd: str, date2proc: datetime.datetime) -> None:
         self.config_dir = config_dir
         self.cmd = cmd
         self.date2proc = date2proc
 
-    def display_config_dir(self):
+    def display_config_dir(self) -> None:
         print("config-file taken from " + self.config_dir)
 
-    def display_configDict(self):
+    def display_configDict(self) -> None:
         confDict = config.gen_confDict(url=self.config_dir)
         print(confDict)
 
         ## do processiong!!
 
-    def dailylvl1(self):
+    def dailylvl1(self) -> None:
         date_chosen = self.date2proc
         print(date_chosen)
         confDict = config.gen_confDict(url=self.config_dir)
@@ -187,7 +191,12 @@ class hpl2netCDFClient(object):
         print(ds_tmp.info)
         ds_tmp.close()
 
-    def lvl2_from_filelist(self, filelist, infile_prefix="XXX_", version_in_filename=False):
+    def lvl2_from_filelist(
+        self,
+        filelist: list[Path] | list[Path | str],
+        infile_prefix: str = "XXX_",
+        version_in_filename: bool = False,
+    ) -> None:
         """generate file containing wind field time series from list of raw input files
 
         Args:
@@ -222,7 +231,7 @@ class hpl2netCDFClient(object):
         print("writing results to {}".format(file_out))
         write_netcdf(ds_lvl2, file_out, confDict)
 
-    def dailylvl2(self):
+    def dailylvl2(self) -> None:
         date_chosen = self.date2proc
         confDict = config.gen_confDict(url=self.config_dir)
 
@@ -256,7 +265,7 @@ class hpl2netCDFClient(object):
         print(ds.info)
         ds.close()
 
-    def lvl2ql(self):
+    def lvl2ql(self) -> None:
         date_chosen = self.date2proc
         confDict = config.gen_confDict(url=self.config_dir)
         ## Look for UTC_OFFSET in config
@@ -434,7 +443,7 @@ class hpl2netCDFClient(object):
                 bbox_inches="tight",
             )
 
-    def bckql(self):
+    def bckql(self) -> None:
         date_chosen = self.date2proc
         confDict = config.gen_confDict(url=self.config_dir)
         if "UTC_OFFSET" in confDict:
@@ -578,7 +587,7 @@ class hpl2netCDFClient(object):
                 bbox_inches="tight",
             )
 
-    def nrtlvl1(self):
+    def nrtlvl1(self) -> None:
         # get configuration
         confDict = config.gen_confDict(url=self.config_dir)
         # timy, wimy, wobbly stuff
@@ -675,7 +684,7 @@ class hpl2netCDFClient(object):
         print(ds_tmp.info)
         ds_tmp.close()
 
-    def rmlvl1(self):
+    def rmlvl1(self) -> None:
         confDict = config.gen_confDict(url=self.config_dir)
         if "UTC_OFFSET" in confDict:
             time_delta = int(confDict["UTC_OFFSET"])
@@ -696,7 +705,7 @@ class hpl2netCDFClient(object):
         except:
             print("no such file exists: " + path.name + "... .nc")
 
-    def nrtlvl2(self):
+    def nrtlvl2(self) -> None:
         # get configuration
         confDict = config.gen_confDict(url=self.config_dir)
         # timy, wimy, wobbly stuff

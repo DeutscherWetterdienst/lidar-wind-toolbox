@@ -16,7 +16,9 @@ from .wind_calc import (
 )
 
 
-def lvl2vad_standard(ds_tmp, date_chosen, confDict):
+def lvl2vad_standard(
+    ds_tmp: xr.Dataset, date_chosen: datetime.datetime, confDict: dict[str, str]
+) -> xr.Dataset:
     # read lidar parameters
     # number of gates
     n_gates = int(confDict["NUMBER_OF_GATES"])
@@ -616,7 +618,9 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
     )
 
 
-def lvl2wcdbs(ds_comb, date_chosen, confDict):
+def lvl2wcdbs(
+    ds_comb: xr.Dataset, date_chosen: datetime.datetime, confDict: dict[str, str]
+) -> xr.Dataset:
     # number of gates
     n_gates = int(confDict["NUMBER_OF_GATES"])
     # number of pulses used in the data point aquisition

@@ -1,4 +1,5 @@
 import datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -7,7 +8,9 @@ import xarray as xr
 from .wind_proc import lvl2vad_standard, lvl2wcdbs
 
 
-def process_dataset(ds_tmp, date_chosen, confDict):
+def process_dataset(
+    ds_tmp: xr.Dataset, date_chosen: datetime.datetime, confDict: dict[str, str]
+) -> xr.Dataset:
     if confDict["SYSTEM"].lower() == "windcube":
         if "fixed" not in confDict["SCAN_TYPE"].lower():
             if (
@@ -102,7 +105,7 @@ def process_dataset(ds_tmp, date_chosen, confDict):
     return ds_lvl2
 
 
-def write_netcdf(ds, filename, confDict):
+def write_netcdf(ds: xr.Dataset, filename: str | Path, confDict: dict[str, str]) -> None:
     # compress variables
     comp = dict(zlib=True, complevel=9)
     encoding = {var: comp for var in np.hstack([ds.data_vars, ds.coords])}

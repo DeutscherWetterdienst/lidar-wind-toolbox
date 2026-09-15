@@ -17,7 +17,7 @@ from .hpl2netCDF_client import hpl2netCDFClient
 register_matplotlib_converters()
 
 
-def try_parsing_date(text):
+def try_parsing_date(text: str) -> datetime.datetime:
     for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%d"):
         try:
             return datetime.datetime.strptime(text, fmt)
@@ -26,7 +26,7 @@ def try_parsing_date(text):
     raise ValueError("no valid date format found")
 
 
-def valid_date(s):
+def valid_date(s: str) -> datetime.datetime:
     try:
         if s == "nrt":
             date = datetime.datetime.now(datetime.timezone.utc)
@@ -38,7 +38,7 @@ def valid_date(s):
         raise argparse.ArgumentTypeError(msg)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Process Halo photonics Doppler lidar Client",
         formatter_class=argparse.RawTextHelpFormatter,

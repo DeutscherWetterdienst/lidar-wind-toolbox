@@ -1,7 +1,8 @@
 import numpy as np
+import xarray as xr
 
 
-def ql_helper(ds, confDict):
+def ql_helper(ds: xr.Dataset, confDict: dict[str, str]):
     # define limits for the range of backscatter values
     if confDict["SYSTEM"].lower() == "halo":
         vmin, vmax = 1e-7, 1e-4

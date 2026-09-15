@@ -6,13 +6,13 @@ from pathlib import Path
 
 ### used to generate configuration information ###
 class config(object):
-    content = {}
+    content: dict[str, str] = {}
 
-    def __init__(self, content):
+    def __init__(self, content: dict[str, str]) -> None:
         self.content = content
 
     @staticmethod
-    def gen_confDict(url=None):
+    def gen_confDict(url: str | Path | None = None) -> dict[str, str]:
         """reading the config into a dictionary for easy processing at later stages."""
         if url is None:
             raise ValueError("configuration path is required")

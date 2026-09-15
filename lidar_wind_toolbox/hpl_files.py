@@ -21,7 +21,7 @@ class hpl_files(object):
         self.time = time
 
     @staticmethod
-    def try_date(text):
+    def try_date(text: str) -> datetime.datetime:
         for fmt in ("%Y%m%dT%H", "%Y%m%dT%H%M%S"):
             try:
                 return datetime.datetime.strptime(text, fmt)
@@ -30,7 +30,9 @@ class hpl_files(object):
         raise ValueError("no valid date format found")
 
     @staticmethod
-    def make_file_list(date_chosen, confDict, url):
+    def make_file_list(
+        date_chosen: datetime.datetime, confDict: dict[str, str], url: str | Path
+    ) -> "hpl_files":
         path = (
             Path(url)
             / date_chosen.strftime("%Y")
@@ -70,8 +72,9 @@ class hpl_files(object):
         return hpl_files.filelist_to_hpl_files(mylist, confDict["SYSTEM"])
 
     @staticmethod
-    def filelist_to_hpl_files(files, inst_type, base_filename=None):
-
+    def filelist_to_hpl_files(
+        files: list[Path] | list[Path | str], inst_type: str, base_filename: str | None = None
+    ) -> "hpl_files":
         fileparts_separator = (
             "_"  # separator between parts of filename, e.g. date and instrument id
         )
@@ -123,7 +126,7 @@ class hpl_files(object):
         return hpl_files(files_sorted, np.sort(file_time))
 
     @staticmethod
-    def range_calc(rg_vec, confDict):
+    def range_calc(rg_vec, confDict: dict[str, str]):
         """Calculate range bounds, also accounting for overlapping gates. If your hpl-files contain overlapping gates please add the "OVERLAPPING_GATES" argument to the configuration file."""
         if "OVERLAPPING_GATES" in confDict:
             r = lambda x, idx: (
@@ -154,13 +157,13 @@ class hpl_files(object):
         return string
 
     @staticmethod
-    def switch(case, string):
+    def switch(case: bool, string: str) -> list[str] | str:
         return {True: hpl_files.split_header(string), False: hpl_files.split_data(string)}.get(
             case, hpl_files.split_default
         )
 
     @staticmethod
-    def reader_idx(hpl_list, confDict, chunks=False):
+    def reader_idx(hpl_list, confDict: dict[str, str], chunks=False):
         print(hpl_list.time[0:10])
         time_file = pd.to_datetime(hpl_list.time)
         time_vec = np.arange(
@@ -177,7 +180,12 @@ class hpl_files(object):
             return np.arange(0, len(hpl_list.time))
 
     @staticmethod
-    def combine_lvl1(hpl_list, confDict, date_chosen, time_chosen=None):
+    def combine_lvl1(
+        hpl_list: "hpl_files",
+        confDict: dict[str, str],
+        date_chosen: datetime.datetime,
+        time_chosen: datetime.datetime | None = None,
+    ) -> Path:
         print(hpl_list.time)
         print(time_chosen)
         ds = hpl_files.combine_lvl1_to_ds(hpl_list, confDict, date_chosen, time_chosen)
@@ -229,7 +237,12 @@ class hpl_files(object):
         return path
 
     @staticmethod
-    def combine_lvl1_to_ds(hpl_list, confDict, date_chosen, time_chosen=None):
+    def combine_lvl1_to_ds(
+        hpl_list: "hpl_files",
+        confDict: dict[str, str],
+        date_chosen: datetime.datetime,
+        time_chosen: datetime.datetime | None = None,
+    ) -> xr.Dataset:
         if confDict["SYSTEM"] == "halo":
             ds = xr.concat(
                 (hpl_files.read_hpl(iit, confDict) for iit in hpl_list.name),
@@ -412,7 +425,7 @@ class hpl_files(object):
             return ds_ind
 
     @staticmethod
-    def read_hpl(filename, confDict):
+    def read_hpl(filename: Path, confDict: dict[str, str]) -> xr.Dataset:
         if not filename.exists():
             print("Oops, file doesn't exist!")
         else:
@@ -860,7 +873,7 @@ class hpl_files(object):
         )
 
     @staticmethod
-    def read_wcsradial(filename, confDict):
+    def read_wcsradial(filename, confDict: dict[str, str]):
         while True:
             if not filename.exists():
                 print("Oops, no such file or directory '{}'".format(filename))
