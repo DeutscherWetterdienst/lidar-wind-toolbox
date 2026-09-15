@@ -55,11 +55,11 @@ def filter_by_snr(x, snr, snr_threshold):
         This functions uses machine epsilon (np.float16) for the numerical value of 0.
     """
 
-    if check_if_db(snr) == True:
+    if check_if_db(snr):
         print("SNR interpreted as dB")
         print(snr.min(), snr.max())
         snr = in_mag(snr)
-    if check_if_db(snr_threshold) == True:
+    if check_if_db(snr_threshold):
         print("SNR-threshold interpreted as dB")
         snr_threshold = in_mag(snr_threshold)
     snr_threshold += np.finfo(np.float32).eps
@@ -91,7 +91,7 @@ def in_db(x):
         This functions uses machine epsilon (np.float32) for the numerical value of 0.
     """
 
-    if check_if_db(x) == True:
+    if check_if_db(x):
         print("Input already in dB")
         return x
     else:
@@ -136,7 +136,7 @@ def in_mag(x):
         Please, do NOT filter the input in advance for missing values.
         This functions uses machine epsilon (np.float32) for the numerical value of 0.
     """
-    if check_if_db(x) == False:
+    if not check_if_db(x):
         print("Input already in magnitude")
         return x
     else:

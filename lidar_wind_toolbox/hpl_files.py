@@ -168,12 +168,12 @@ class hpl_files(object):
             (hpl_list.time[0] + datetime.timedelta(days=1)),
             pd.to_timedelta(int(confDict["AVG_MIN"]), unit="m"),
         )
-        if chunks == True:
+        if chunks:
             return [
                 np.where((ii <= time_file) * (time_file < iip1))
                 for ii, iip1 in zip(time_vec[0:-1], time_vec[1::])
             ]
-        if chunks == False:
+        if not chunks:
             return np.arange(0, len(hpl_list.time))
 
     @staticmethod
@@ -457,7 +457,7 @@ class hpl_files(object):
                 # 1d information.
                 indicator = len(line[:10].split())
 
-                if header_info == True:
+                if header_info:
                     try:
                         if tmp[0][0:1] == "i":
                             tmp_tmp = {"Data line 2 (format)": tmp[0]}
@@ -469,7 +469,7 @@ class hpl_files(object):
                         else:
                             tmp_tmp = {"blank": "nothing"}
                     mheader.update(tmp_tmp)
-                elif header_info == False:
+                elif not header_info:
                     if counter_jj == 0:
                         n_o_rays = (len(filename.open().read().splitlines()) - 17) // (
                             int(mheader["Number of gates"]) + 1
