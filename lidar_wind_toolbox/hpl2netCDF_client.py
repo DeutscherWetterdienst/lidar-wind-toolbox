@@ -261,10 +261,8 @@ class hpl2netCDFClient(object):
         confDict = config.gen_confDict(url=self.config_dir)
         ## Look for UTC_OFFSET in config
         if "UTC_OFFSET" in confDict:
-            time_offset = np.timedelta64(int(confDict["UTC_OFFSET"]), "h")
             time_delta = int(confDict["UTC_OFFSET"])
         else:
-            time_offset = np.timedelta64(0, "h")
             time_delta = 0
 
         ds = import_lvl2(date_chosen, confDict)
@@ -289,8 +287,6 @@ class hpl2netCDFClient(object):
             V = np.copy(ds.v.data)
             WS = np.copy(ds.wspeed.data)
             qwind = np.copy(ds.qwind.data)
-
-            mask = qwind < 1
 
             vel_sq_sum = U**2 + V**2
             qvels = (
@@ -320,7 +316,6 @@ class hpl2netCDFClient(object):
                 - datetime.timedelta(hours=time_delta)
             )
             print(d, dp1)
-            dticks = np.arange(d, dp1, datetime.timedelta(hours=1))
 
             # plot colored barbs
             clims = [0, wsmax]
@@ -379,41 +374,6 @@ class hpl2netCDFClient(object):
             # set y-axis limits
             ylims_1 = [0, (np.round(hmax, -2) + 100)]
             ax.set_ylim(ylims_1)
-            # plot smaller than 2.5 as sticks
-            U = np.copy(ds.u.data)
-            V = np.copy(ds.v.data)
-            WS = np.copy(ds.wspeed.data)
-            qwind = np.copy(ds.qwind.data)
-
-            mask = qwind < 1
-            vel_sq_sum = U**2 + V**2
-            qvels = (
-                np.sqrt(
-                    vel_sq_sum, out=999.0 * np.ones(vel_sq_sum.shape), where=~np.isnan(vel_sq_sum)
-                )
-                < 2.5
-            )
-
-            qwind = qwind * qvels
-            mask = qwind < 1
-
-            masked_u = np.ma.masked_where(mask, U)
-            masked_v = np.ma.masked_where(mask, V)
-            masked_WS = np.ma.masked_where(mask, WS)
-
-            c = ax.barbs(
-                X.T,
-                Y.T,
-                masked_u,
-                masked_v,
-                masked_WS,
-                clim=[0, wsmax],
-                rounding=False,
-                pivot="middle",
-                barb_increments=dict(half=0.25, full=5, flag=25),
-                sizes=dict(emptybarb=0.25, spacing=0.1, height=0.0, width=0.0),
-                cmap=palette,
-            )
 
             # set tick parameters
             ax.tick_params(
@@ -478,10 +438,8 @@ class hpl2netCDFClient(object):
         date_chosen = self.date2proc
         confDict = config.gen_confDict(url=self.config_dir)
         if "UTC_OFFSET" in confDict:
-            time_offset = np.timedelta64(int(confDict["UTC_OFFSET"]), "h")
             time_delta = int(confDict["UTC_OFFSET"])
         else:
-            time_offset = np.timedelta64(0, "h")
             time_delta = 0
 
         ds = import_lvl1(date_chosen, confDict)
@@ -534,7 +492,6 @@ class hpl2netCDFClient(object):
                 - datetime.timedelta(hours=time_delta)
             )
             print(d, dp1)
-            dticks = np.arange(d, dp1, datetime.timedelta(hours=1))
             ax.set_xlabel(date_chosen.strftime("%Y-%m-%d") + "\n" + "time (UTC)", fontsize=22)
             ax.set_ylabel(r"$\rm{height}\;/\;\rm{m}$", fontsize=22)
             ax.set_xlim(d, dp1)
@@ -749,8 +706,6 @@ class hpl2netCDFClient(object):
         else:
             time_delta = 0
         time_chosen = self.date2proc + datetime.timedelta(hours=time_delta)
-        delt = int(confDict["AVG_MIN"])
-        date_chosen = datetime.datetime(time_chosen.year, time_chosen.month, time_chosen.day)
         # read L1 netCDF
         path = Path(confDict["NC_L1_PATH"])
 
@@ -862,9 +817,6 @@ class hpl2netCDFClient(object):
         R2 = np.full((1, n_gates), np.nan)
         CN = np.full((1, n_gates), np.nan)
         n_good = np.full((1, n_gates), np.nan)
-        SNR_tot = np.full((1, n_gates), np.nan)
-        BETA_tot = np.full((1, n_gates), np.nan)
-        SIGMA_tot = np.full((1, n_gates), np.nan)
 
         if len(time_ds) != 0:
             print("nrt L2 processing...")
@@ -884,7 +836,6 @@ class hpl2netCDFClient(object):
                 VR_CNSmax = np.full((len(azi_mean), n_gates), np.nan)
                 VR_CNSunc = np.full((len(azi_mean), n_gates), np.nan)
 
-                BETA_CNS = np.full((len(azi_mean), n_gates), np.nan)
                 SIGMA_CNS = np.full((len(azi_mean), n_gates), np.nan)
 
                 ele_cns = np.full((len(azi_mean),), np.nan)
@@ -911,7 +862,6 @@ class hpl2netCDFClient(object):
                     #                                , SNR[azi_idx]
                     #                                , np.nan)
                     #                          , axis=0)
-                    SNR_tmp = SNR[azi_idx]
                     sigma_tmp = calc_sigma_single(in_db(SNR[azi_idx]), M, n, 2 * B, 1.316)
                     # Probably an error in the calculation, but this is what's written in the IDL-code
                     # here: MRSE (mean/root/sum/square)

@@ -50,8 +50,6 @@ def ql_helper(ds, confDict):
     # indentify maxima of each cycle
     if condi:
         Z = beta
-        mask = (np.isnan(Z)) | (Z == -999.0)
-        masked_Z = np.ma.masked_where(mask, Z)
         id_condi = np.round(azi[:-1].round() % 360 - azi[1:].round() % 360) >= 180
         idx = np.where(np.hstack([True, id_condi]))[0]
         beta_max = np.full((sum(id_condi), beta.shape[1]), np.nan)
@@ -66,7 +64,6 @@ def ql_helper(ds, confDict):
 
     else:
         Z = beta
-        mask = (np.isnan(Z)) | (Z == -999.0)
         beta_max = Z
         time_mean = time.data
 

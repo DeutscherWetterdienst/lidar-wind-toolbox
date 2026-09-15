@@ -63,7 +63,6 @@ def calc_sigma_single(SNR_dB, Mpts, nsmpl, BW, delta_v):
     a1 = 2.0 * (np.sqrt(np.ma.divide(np.sqrt(np.pi), alpha)))
     a2 = 1 + 0.16 * alpha
     a3 = np.ma.divide(delta_v, np.sqrt(Np))
-    SNR = SNR
     sigma = np.ma.masked_where(SNR_dB > -5, (a1 * a2 * a3).filled(np.nan)).filled(a3.filled(np.nan))
 
     return sigma
@@ -277,7 +276,7 @@ def process(lst, mon):
     return {k: list(g) for k, g in it.groupby(lst, grouper_proc)}
 
 
-def get_cycles(lst, mon):
+def get_cycles(lst):
     ll = 0
     res = {}
     for key, lst in process(lst, int(np.median(np.sign(np.diff(np.array(lst)))))).items():

@@ -12,7 +12,7 @@ class config(object):
         self.content = content
 
     @staticmethod
-    def gen_confDict(arg=True, url=None):
+    def gen_confDict(url=None):
         """reading the config into a dictionary for easy processing at later stages."""
         if url is None:
             raise ValueError("configuration path is required")

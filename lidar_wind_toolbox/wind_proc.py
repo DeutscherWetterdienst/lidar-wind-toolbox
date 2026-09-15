@@ -18,7 +18,6 @@ from .wind_calc import (
 
 def lvl2vad_standard(ds_tmp, date_chosen, confDict):
     # read lidar parameters
-    n_rays = int(confDict["NUMBER_OF_DIRECTIONS"])
     # number of gates
     n_gates = int(confDict["NUMBER_OF_GATES"])
     # number of pulses used in the data point aquisition
@@ -49,10 +48,8 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
     # define time chunks
     ## Look for UTC_OFFSET in config
     if "UTC_OFFSET" in confDict:
-        time_offset = np.timedelta64(int(confDict["UTC_OFFSET"]), "h")
         time_delta = int(confDict["UTC_OFFSET"])
     else:
-        time_offset = np.timedelta64(0, "h")
         time_delta = 0
 
     time_vec = np.arange(
@@ -123,13 +120,9 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
     R2 = np.full((len(calc_idx), n_gates), np.nan)
     CN = np.full((len(calc_idx), n_gates), np.nan)
     n_good = np.full((len(calc_idx), n_gates), np.nan)
-    SNR_tot = np.full((len(calc_idx), n_gates), np.nan)
-    BETA_tot = np.full((len(calc_idx), n_gates), np.nan)
-    SIGMA_tot = np.full((len(calc_idx), n_gates), np.nan)
 
     for kk in time_valid:
         print("processed " + str(np.floor(100 * kk / (len(calc_idx) - 1))) + " %")
-        # read lidar parameters
         n_rays = int(confDict["NUMBER_OF_DIRECTIONS"])
         indicator, n_rays, azi_mean, azi_edges = find_num_dir(n_rays, calc_idx, azimuth, kk)
         r_phi = 360 / (n_rays) / 2
@@ -145,7 +138,6 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
 
             VR_CNSmax = np.full((len(azi_mean), n_gates), np.nan)
             VR_CNSunc = np.full((len(azi_mean), n_gates), np.nan)
-            BETA_CNS = np.full((len(azi_mean), n_gates), np.nan)
             SIGMA_CNS = np.full((len(azi_mean), n_gates), np.nan)
             ele_cns = np.full((len(azi_mean),), np.nan)
 
@@ -170,7 +162,6 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
                 #                                , SNR[azi_idx]
                 #                                , np.nan)
                 #                          , axis=0)
-                SNR_tmp = SNR[azi_idx]
                 sigma_tmp = calc_sigma_single(in_db(SNR[azi_idx]), M, n, 2 * B, 1.316)
                 # Probably an error in the calculation, but this is what's written in the IDL-code
                 # here: MRSE (mean/root/sum/square)
@@ -626,7 +617,6 @@ def lvl2vad_standard(ds_tmp, date_chosen, confDict):
 
 
 def lvl2wcdbs(ds_comb, date_chosen, confDict):
-    n_rays = int(confDict["NUMBER_OF_DIRECTIONS"])
     # number of gates
     n_gates = int(confDict["NUMBER_OF_GATES"])
     # number of pulses used in the data point aquisition
@@ -639,7 +629,6 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
     azimuth = ds_comb.azimuth.data
     cnr = 10 ** (ds_comb.cnr.data / 10)
     dv = ds_comb.radial_wind_speed.data
-    delv = ds_comb.doppler_spectrum_width.data
     if "relative_beta" in list(ds_comb.keys()):
         beta = ds_comb.relative_beta.data
     else:
@@ -655,10 +644,8 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
     height_bnds = np.vstack([height - lrg / 2, height - lrg / 2]).T
 
     if "UTC_OFFSET" in confDict:
-        time_offset = np.timedelta64(int(confDict["UTC_OFFSET"]), "h")
         time_delta = int(confDict["UTC_OFFSET"])
     else:
-        time_offset = np.timedelta64(0, "h")
         time_delta = 0
 
     time_vec = np.arange(
@@ -726,8 +713,6 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
     R2 = np.full((len(calc_idx), n_gates), np.nan)
     CN = np.full((len(calc_idx), n_gates), np.nan)
     n_good = np.full((len(calc_idx), n_gates), np.nan)
-    CNR_tot = np.full((len(calc_idx), n_gates), np.nan)
-    BETA_tot = np.full((len(calc_idx), n_gates), np.nan)
 
     for kk in time_valid:
         print("processed " + str(np.floor(100 * kk / (len(calc_idx) - 1))) + " %")
@@ -743,26 +728,19 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
             # only if vertical values exist
             if np.any(elevation[calc_idx[kk]] > 89):
                 WR = dv[calc_idx[kk]][elevation[calc_idx[kk]] > 89]
-                CNR_WR = cnr[calc_idx[kk]][elevation[calc_idx[kk]] > 89]
-                BETA_WR = dv[calc_idx[kk]][elevation[calc_idx[kk]] > 89]
-                SPEC_WR = delv[calc_idx[kk]][elevation[calc_idx[kk]] > 89]
                 # estimate consensus of vertical velocity data
                 w_cns, idx_tmp, tmp_tmp = consensus(
                     WR, np.ones(WR.shape), np.ones(WR.shape), 2, 30, 0, B
                 )
                 WR_SPEC = tmp_tmp
-                WR_CNS = np.ma.masked_where(~idx_tmp, CNR_WR).mean(axis=0).filled(np.nan)
-                WR_BETA = np.ma.masked_where(~idx_tmp, BETA_WR).mean(axis=0).filled(np.nan)
             CNR = cnr[calc_idx[kk]][elevation[calc_idx[kk]] < 89]
             BETA = beta[calc_idx[kk]][elevation[calc_idx[kk]] < 89]
             azi = azimuth[calc_idx[kk]][elevation[calc_idx[kk]] < 89]
             ele = elevation[calc_idx[kk]][elevation[calc_idx[kk]] < 89]
-            SPEC = delv[calc_idx[kk]][elevation[calc_idx[kk]] < 89]
 
             VR_CNSmax = np.full((len(azi_mean), n_gates), np.nan)
             VR_CNSunc = np.full((len(azi_mean), n_gates), np.nan)
             CNR_CNS = np.full((len(azi_mean), n_gates), np.nan)
-            BETA_CNS = np.full((len(azi_mean), n_gates), np.nan)
             SIGMA_CNS = np.full((len(azi_mean), n_gates), np.nan)
             ele_cns = np.full((len(azi_mean),), np.nan)
 
@@ -816,14 +794,6 @@ def lvl2wcdbs(ds_comb, date_chosen, confDict):
 
             condi = np.isnan(VR_CNSmax)
             A = np.round(build_Amatrix(azi_mean, ele_cns), 6)
-            # include stare measurements
-            A_stare = np.round(
-                build_Amatrix(
-                    np.zeros(((elevation[calc_idx[kk]] > 89).sum(),)),
-                    90 * np.ones(((elevation[calc_idx[kk]] > 89).sum(),)),
-                ),
-                6,
-            )
             U, S, Vh = [], [], []
             for c_nn in condi.T:
                 u, s, vh = np.linalg.svd(

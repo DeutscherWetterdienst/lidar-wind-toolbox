@@ -370,10 +370,8 @@ class hpl_files(object):
         ds.time.data.astype(np.float64)
 
         if "UTC_OFFSET" in confDict:
-            time_offset = np.timedelta64(int(confDict["UTC_OFFSET"]), "h")
             time_delta = int(confDict["UTC_OFFSET"])
         else:
-            time_offset = np.timedelta64(0, "h")
             time_delta = 0
 
         ds.time.attrs["units"] = (
