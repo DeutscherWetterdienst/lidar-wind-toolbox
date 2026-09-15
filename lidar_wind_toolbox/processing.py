@@ -153,6 +153,7 @@ def _legacy_reader_config(
         "SYSTEM_ALTITUDE": str(context.instrument.altitude_m),
         "SYSTEM_WAVELENGTH": str(context.instrument.wavelength_m),
         "SCAN_TYPE": context.scan_type,
+        "VERSION": context.processing_version,
         "PULS_DURATION": str(reader_settings.pulse_duration_s),
         "NUMBER_OF_GATE_POINTS": str(reader_settings.points_per_gate),
         "PULSES_PER_DIRECTION": str(reader_settings.pulses_per_direction),
