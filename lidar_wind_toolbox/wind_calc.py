@@ -4,22 +4,6 @@ import operator as op
 import numpy as np
 
 
-def uvw_2_dir(uvw, uvw_unc):
-    if (np.isfinite(uvw[0]) * np.isfinite(uvw[1])) & (~np.isnan(uvw[0]) * ~np.isnan(uvw[1])):
-        wdir = np.arctan2(uvw[0], uvw[1]) * 180 / np.pi + 180
-    else:
-        wdir = np.nan
-    if np.isfinite(wdir):
-        error = (
-            (180 / np.pi)
-            * np.sqrt((uvw[0] * uvw_unc[0]) ** 2 + (uvw[1] * uvw_unc[1]) ** 2)
-            / (uvw[0] ** 2 + uvw[1] ** 2)
-        )
-    else:
-        error = np.nan
-    return {"wdir": wdir, "error": error}
-
-
 def calc_sigma_single(SNR_dB, Mpts, nsmpl, BW, delta_v):
     "calculates the instrument uncertainty: SNR in dB!"
     SNR = 10 ** (SNR_dB / 10)

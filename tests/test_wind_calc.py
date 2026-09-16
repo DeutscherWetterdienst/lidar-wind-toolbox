@@ -1,7 +1,6 @@
 import numpy as np
 
-from lidar_wind_toolbox.retrieval.geometry import build_Amatrix, uvw_2_spd
-from lidar_wind_toolbox.wind_calc import uvw_2_dir
+from lidar_wind_toolbox.retrieval.geometry import build_Amatrix, uvw_2_dir, uvw_2_spd
 
 
 def test_build_amatrix_for_horizontal_eastward_ray() -> None:
