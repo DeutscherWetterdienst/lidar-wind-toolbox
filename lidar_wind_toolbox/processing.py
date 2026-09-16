@@ -89,17 +89,7 @@ def retrieve_windcube_vad(
     _validate_daily_window(context)
     validate_normalized_windcube_level1(dataset)
 
-    # Determine gate count across different schemas (gate_index or range dimension)
-    if "range" in dataset.sizes:
-        number_of_gates = dataset.sizes["range"]
-    elif "gate_index" in dataset.sizes:
-        number_of_gates = dataset.sizes["gate_index"]
-    elif "radial_wind_speed" in dataset.variables:
-        number_of_gates = dataset["radial_wind_speed"].shape[1]
-    elif "dv" in dataset.variables:
-        number_of_gates = dataset["dv"].shape[1]
-    else:
-        raise ValueError("Cannot determine number of range gates from dataset dimensions")
+    number_of_gates = int(dataset["radial_wind_speed"].shape[1])
 
     legacy_config = _legacy_config(
         context,
@@ -109,11 +99,26 @@ def retrieve_windcube_vad(
     processing_day = context.window.start.astimezone(UTC).replace(tzinfo=None)
 
     # Legacy code mutates its input dataset. Preserve the caller's dataset.
-    normalized_input = dataset.copy(deep=True)
-    legacy_input = _to_legacy_retrieval_dataset(normalized_input)
+    retrieval_input = dataset.copy(deep=True)
+
+    if "range_gate_length" not in retrieval_input.variables:
+        if "range_bnds" in retrieval_input.variables:
+            retrieval_input["range_gate_length"] = (
+                (
+                    retrieval_input["range_bnds"].isel(nv=1)
+                    - retrieval_input["range_bnds"].isel(nv=0)
+                )
+                .mean()
+                .astype(np.float32)
+            )
+        elif "range" in retrieval_input.variables and retrieval_input["range"].size > 1:
+            dim_name = retrieval_input["range"].dims[0]
+            retrieval_input["range_gate_length"] = (
+                retrieval_input["range"].diff(dim_name).mean().astype(np.float32)
+            )
 
     result = process_dataset(
-        legacy_input,
+        retrieval_input,
         processing_day,
         legacy_config,
     )
@@ -246,59 +251,3 @@ def _legacy_config(
         "NC_WMO_ID": context.product.wmo_id or "N/A",
         "NC_PI_ID": context.product.principal_investigator or "N/A",
     }
-
-
-def _to_legacy_retrieval_dataset(dataset: xr.Dataset) -> xr.Dataset:
-    """Translate supported Level-1 schemas to the legacy retrieval interface."""
-
-    result = dataset.copy(deep=False)
-
-    # Convert the legacy normalized names only when the native WindCube
-    # variable is not already present.
-    rename_map: dict[str, str] = {}
-
-    if "dv" in result.variables and "radial_wind_speed" not in result.variables:
-        rename_map["dv"] = "radial_wind_speed"
-
-    if "azi" in result.variables and "azimuth" not in result.variables:
-        rename_map["azi"] = "azimuth"
-
-    if rename_map:
-        result = result.rename(rename_map)
-
-    # Convert zenith angle to elevation only when the dataset does not
-    # already provide elevation.
-    if "zenith" in result.variables and "elevation" not in result.variables:
-        result["elevation"] = 90.0 - result["zenith"]
-
-    # Derive CNR from intensity for legacy normalized datasets.
-    if "intensity" in result.variables and "cnr" not in result.variables:
-        intensity = result["intensity"]
-        result["cnr"] = xr.where(
-            intensity > 1.0,
-            10.0 * np.log10(intensity - 1.0),
-            np.nan,
-        )
-
-    # Map legacy backscatter and spectral-width variable names.
-    if "beta" in result.variables and "relative_beta" not in result.variables:
-        result["relative_beta"] = result["beta"]
-
-    if "delv" in result.variables and "doppler_spectrum_width" not in result.variables:
-        result["doppler_spectrum_width"] = result["delv"]
-
-    # Infer the range-gate length when it is not explicitly available.
-    if "range_gate_length" not in result.variables:
-        if "range_bnds" in result.variables:
-            result["range_gate_length"] = (
-                (result["range_bnds"].isel(nv=1) - result["range_bnds"].isel(nv=0))
-                .mean()
-                .astype(np.float32)
-            )
-        elif "range" in result.variables and result["range"].size > 1:
-            dim_name = result["range"].dims[0]
-            result["range_gate_length"] = result["range"].diff(dim_name).mean().astype(np.float32)
-        else:
-            raise ValueError("Cannot infer range_gate_length from the dataset.")
-
-    return result

@@ -12,37 +12,22 @@ def require_variables(dataset: xr.Dataset, names: set[str]) -> None:
 
 
 def validate_normalized_windcube_level1(dataset: xr.Dataset) -> None:
-    """Validate the normalized internal Level-1 contract for WindCube retrieval."""
+    """Validate the WindCube Level-1 dataset contract for VAD retrieval."""
 
-    # Native WindCube VAD files use the original WindCube variable names.
-    if "radial_wind_speed" in dataset.variables:
-        require_variables(
-            dataset,
-            {
-                "time",
-                "radial_wind_speed",
-                "azimuth",
-                "elevation",
-                "cnr",
-                "doppler_spectrum_width",
-            },
-        )
-        return
-
-    # Some legacy readers produce the normalized internal variable names.
-    if "dv" in dataset.variables:
-        require_variables(
-            dataset,
-            {
-                "time",
-                "dv",
-                "azi",
-                "zenith",
-                "intensity",
-            },
-        )
-        return
-
-    raise InputDatasetError(
-        "Dataset must contain either 'radial_wind_speed' or 'dv' as the radial velocity variable."
+    require_variables(
+        dataset,
+        {
+            "time",
+            "radial_wind_speed",
+            "azimuth",
+            "elevation",
+            "cnr",
+        },
     )
+
+    if dataset["radial_wind_speed"].ndim != 2:
+        raise InputDatasetError("radial_wind_speed must be a 2D array (time, gates)")
+
+    for name in ("azimuth", "elevation"):
+        if dataset[name].ndim != 1:
+            raise InputDatasetError(f"{name} must be a 1D array along time")

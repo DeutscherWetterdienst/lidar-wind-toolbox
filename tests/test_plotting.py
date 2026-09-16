@@ -28,8 +28,8 @@ def make_level2_dataset() -> xr.Dataset:
 def make_level1_dataset() -> xr.Dataset:
     return xr.Dataset(
         data_vars={
-            "beta": (("time", "range"), np.array([[1e-7, 2e-7]], dtype=np.float32)),
-            "azi": (("time",), np.array([0.0], dtype=np.float32)),
+            "cnr": (("time", "range"), np.array([[-5.0, -10.0]], dtype=np.float32)),
+            "azimuth": (("time",), np.array([0.0], dtype=np.float32)),
             "elevation": (("time",), np.array([75.0], dtype=np.float32)),
         },
         coords={

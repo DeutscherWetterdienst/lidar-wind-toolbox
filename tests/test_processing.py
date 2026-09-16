@@ -14,7 +14,6 @@ from lidar_wind_toolbox.models import (
     WindRetrievalSettings,
 )
 from lidar_wind_toolbox.processing import (
-    _to_legacy_retrieval_dataset,
     process_windcube_vad_files,
     read_windcube_scan_files,
     retrieve_windcube_vad,
@@ -69,50 +68,7 @@ def make_reader_settings() -> WindCubeLevel1ReaderSettings:
     )
 
 
-def normalized_level1_dataset() -> xr.Dataset:
-    """Legacy normalized Level-1 dataset (with dv, azi, zenith)."""
-    azimuth = np.repeat(np.arange(0.0, 360.0, 30.0), 2)
-    time = 1_767_225_600.0 + np.arange(azimuth.size) * 5.0
-    ranges = np.array([50.0, 100.0], dtype=np.float32)
-
-    return xr.Dataset(
-        data_vars={
-            "dv": (
-                ("time", "range"),
-                np.full((azimuth.size, ranges.size), 2.0, dtype=np.float32),
-            ),
-            "intensity": (
-                ("time", "range"),
-                np.full((azimuth.size, ranges.size), 2.0, dtype=np.float32),
-            ),
-            "beta": (
-                ("time", "range"),
-                np.full((azimuth.size, ranges.size), 1e-7, dtype=np.float32),
-            ),
-            "delv": (
-                ("time", "range"),
-                np.full((azimuth.size, ranges.size), 0.5, dtype=np.float32),
-            ),
-            "azi": (("time",), azimuth.astype(np.float32)),
-            "zenith": (("time",), np.full(azimuth.size, 15.0, dtype=np.float32)),
-            "nsmpl": ((), np.float32(10.0)),
-            "prf": ((), np.float32(10000.0)),
-            "nqv": ((), np.float32(19.0)),
-            "range_bnds": (
-                ("range", "nv"),
-                np.array([[25.0, 75.0], [75.0, 125.0]], dtype=np.float32),
-            ),
-        },
-        coords={
-            "time": time,
-            "range": ranges,
-            "nv": np.array([0, 1], dtype=np.int8),
-        },
-    )
-
-
 def native_windcube_level1_dataset() -> xr.Dataset:
-    """Native WindCube VAD dataset (with radial_wind_speed, azimuth, elevation)."""
     azimuth = np.repeat(np.arange(0.0, 360.0, 30.0), 2)
     time = 1_767_225_600.0 + np.arange(azimuth.size) * 5.0
     ranges = np.array([50.0, 100.0], dtype=np.float32)
@@ -120,34 +76,35 @@ def native_windcube_level1_dataset() -> xr.Dataset:
     return xr.Dataset(
         data_vars={
             "radial_wind_speed": (
-                ("time", "range"),
+                ("time", "gate_index"),
                 np.full((azimuth.size, ranges.size), 2.0, dtype=np.float32),
             ),
             "cnr": (
-                ("time", "range"),
+                ("time", "gate_index"),
                 np.full((azimuth.size, ranges.size), 0.0, dtype=np.float32),
             ),
             "relative_beta": (
-                ("time", "range"),
+                ("time", "gate_index"),
                 np.full((azimuth.size, ranges.size), 1e-7, dtype=np.float32),
             ),
             "doppler_spectrum_width": (
-                ("time", "range"),
+                ("time", "gate_index"),
                 np.full((azimuth.size, ranges.size), 0.5, dtype=np.float32),
             ),
             "azimuth": (("time",), azimuth.astype(np.float32)),
             "elevation": (("time",), np.full(azimuth.size, 75.0, dtype=np.float32)),
+            "range": (("gate_index",), ranges),
             "range_gate_length": ((), np.float32(50.0)),
         },
         coords={
             "time": time,
-            "range": ranges,
+            "gate_index": np.arange(ranges.size),
         },
     )
 
 
-def test_retrieve_windcube_vad_from_legacy_normalized_dataset() -> None:
-    source = normalized_level1_dataset()
+def test_retrieve_windcube_vad_returns_level2_dataset() -> None:
+    source = native_windcube_level1_dataset()
     original = source.copy(deep=True)
 
     result = retrieve_windcube_vad(source, make_context())
@@ -166,47 +123,10 @@ def test_retrieve_windcube_vad_from_legacy_normalized_dataset() -> None:
 
     assert result.attrs["processing_version"] == "0.1.0"
     assert result.attrs["processing_date"] == "2026-01-02T12:00:00Z"
-
     assert "File_Configuration" not in result.attrs
     assert "config" not in result.variables
 
     xr.testing.assert_identical(source, original)
-
-
-def test_retrieve_windcube_vad_from_native_dataset() -> None:
-    source = native_windcube_level1_dataset()
-    original = source.copy(deep=True)
-
-    result = retrieve_windcube_vad(source, make_context())
-
-    assert set(result.data_vars) >= {
-        "u",
-        "v",
-        "w",
-        "wspeed",
-        "wdir",
-        "qwind",
-        "cn",
-        "nvrad",
-        "r2",
-    }
-    xr.testing.assert_identical(source, original)
-
-
-def test_to_legacy_retrieval_dataset_converts_zenith_when_elevation_is_missing() -> None:
-    source = normalized_level1_dataset()
-    adapted = _to_legacy_retrieval_dataset(source)
-
-    # Zenith 15° converted to elevation 75°
-    np.testing.assert_allclose(adapted["elevation"].values, 75.0)
-
-
-def test_to_legacy_retrieval_dataset_preserves_existing_elevation() -> None:
-    source = native_windcube_level1_dataset()
-    adapted = _to_legacy_retrieval_dataset(source)
-
-    # Native elevation 75° must remain 75° (not inverted twice to 15°)
-    np.testing.assert_allclose(adapted["elevation"].values, 75.0)
 
 
 def test_read_windcube_scan_files_uses_explicit_reader_settings(
@@ -217,7 +137,7 @@ def test_read_windcube_scan_files_uses_explicit_reader_settings(
     class DummyFiles:
         pass
 
-    expected_dataset = normalized_level1_dataset()
+    expected_dataset = native_windcube_level1_dataset()
 
     def fake_filelist_to_hpl_files(files: list[Path], inst_type: str) -> DummyFiles:
         captured["files"] = files
@@ -258,6 +178,8 @@ def test_read_windcube_scan_files_uses_explicit_reader_settings(
     assert result is expected_dataset
     assert captured["files"] == files
     assert captured["inst_type"] == "windcube"
+    assert captured["files_hpl"].__class__ is DummyFiles
+    assert captured["time_chosen"] is None
 
     conf_dict = captured["conf_dict"]
     assert isinstance(conf_dict, dict)
@@ -311,14 +233,3 @@ def test_process_windcube_vad_files_returns_level1_and_level2(
 
     assert result_level1 is level1
     assert result_level2 is level2
-
-
-def test_retrieve_windcube_vad_accepts_gate_index_dimension() -> None:
-    source = native_windcube_level1_dataset()
-    # Rename dimension from range to gate_index as in real WindCube files
-    source = source.rename_dims({"range": "gate_index"})
-
-    result = retrieve_windcube_vad(source, make_context())
-
-    assert "wspeed" in result.data_vars
-    assert result.sizes["height"] == 2
