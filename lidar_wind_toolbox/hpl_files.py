@@ -153,23 +153,6 @@ class hpl_files(object):
         )
 
     @staticmethod
-    def reader_idx(hpl_list, confDict: dict[str, str], chunks=False):
-        print(hpl_list.time[0:10])
-        time_file = pd.to_datetime(hpl_list.time)
-        time_vec = np.arange(
-            pd.to_datetime(hpl_list.time[0].date()),
-            (hpl_list.time[0] + datetime.timedelta(days=1)),
-            pd.to_timedelta(int(confDict["AVG_MIN"]), unit="m"),
-        )
-        if chunks:
-            return [
-                np.where((ii <= time_file) * (time_file < iip1))
-                for ii, iip1 in zip(time_vec[0:-1], time_vec[1::])
-            ]
-        if not chunks:
-            return np.arange(0, len(hpl_list.time))
-
-    @staticmethod
     def combine_lvl1(
         hpl_list: "hpl_files",
         confDict: dict[str, str],
