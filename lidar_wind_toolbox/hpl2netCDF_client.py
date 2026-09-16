@@ -26,9 +26,9 @@ from .main_proc import process_dataset, write_netcdf
 from .plot_helpers import ql_helper
 from .signal_calc import CN_est, in_db
 from .wind_calc import (
-    calc_sigma_single,
     find_num_dir,
 )
+from .retrieval.uncertainty import calc_sigma_single
 from .retrieval.consensus import consensus
 from .retrieval.geometry import build_Amatrix, uvw_2_spd, uvw_2_dir
 

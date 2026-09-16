@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from .wind_calc import calc_sigma_single
+from .retrieval.uncertainty import calc_sigma_single
 
 
 class hpl_files(object):
