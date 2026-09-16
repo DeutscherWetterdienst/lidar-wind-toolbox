@@ -4,20 +4,6 @@ import operator as op
 import numpy as np
 
 
-def uvw_2_spd(uvw, uvw_unc):
-    if (np.isfinite(uvw[0]) * np.isfinite(uvw[1])) & (~np.isnan(uvw[0]) * ~np.isnan(uvw[1])):
-        speed = np.sqrt((uvw[0]) ** 2.0 + (uvw[1]) ** 2.0)
-    else:
-        speed = np.nan
-    if speed > 0:
-        df_du = uvw[0] * 1 / speed
-        df_dv = uvw[1] * 1 / speed
-        error = np.sqrt((df_du * uvw_unc[0]) ** 2 + (df_dv * uvw_unc[1]) ** 2)
-    else:
-        error = np.nan
-    return {"speed": speed, "error": error}
-
-
 def uvw_2_dir(uvw, uvw_unc):
     if (np.isfinite(uvw[0]) * np.isfinite(uvw[1])) & (~np.isnan(uvw[0]) * ~np.isnan(uvw[1])):
         wdir = np.arctan2(uvw[0], uvw[1]) * 180 / np.pi + 180

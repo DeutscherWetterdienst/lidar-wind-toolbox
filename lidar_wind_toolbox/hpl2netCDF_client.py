@@ -30,9 +30,8 @@ from .wind_calc import (
     consensus,
     find_num_dir,
     uvw_2_dir,
-    uvw_2_spd,
 )
-from .retrieval.geometry import build_Amatrix
+from .retrieval.geometry import build_Amatrix, uvw_2_spd
 
 ColorKey = Literal["red", "green", "blue", "alpha"]
 
