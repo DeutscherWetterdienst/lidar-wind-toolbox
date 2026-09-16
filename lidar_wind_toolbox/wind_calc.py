@@ -44,13 +44,6 @@ def process(lst, mon):
     return {k: list(g) for k, g in it.groupby(lst, grouper_proc)}
 
 
-def grouper(iterable, n, fillvalue=None):
-    """Collect data into fixed-length chunks or blocks"""
-
-    args = [iter(iterable)] * n
-    return it.zip_longest(*args, fillvalue=fillvalue)
-
-
 def check_num_dir(n_rays, calc_idx, azimuth, idx_valid):
     h, be = np.histogram(np.mod(azimuth[calc_idx[idx_valid]], 360), bins=2 * n_rays, range=(0, 360))
     counts = np.sum(np.r_[h[-1], h[:-1]].reshape(-1, 2), axis=1)  # rotate and sum

@@ -3,8 +3,6 @@ import operator as op
 
 import numpy as np
 
-from lidar_wind_toolbox.wind_calc import grouper
-
 
 def consensus(Vr, SNR, BETA, CNS_range, CNS_percentage, SNR_threshold, B):
     """
@@ -121,3 +119,10 @@ def calc_node_degree(Vr, CNS_range, B, metric="l1norm"):
                 )
             )
         ).sum(axis=1)
+
+
+def grouper(iterable, n, fillvalue=None):
+    """Collect data into fixed-length chunks or blocks"""
+
+    args = [iter(iterable)] * n
+    return it.zip_longest(*args, fillvalue=fillvalue)
