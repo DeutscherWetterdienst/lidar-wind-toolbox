@@ -5,10 +5,9 @@ import pandas as pd
 import xarray as xr
 from scipy.linalg import diagsvd
 
-from .signal_calc import CN_est, in_db
-from .wind_calc import (
+from lidar_wind_toolbox.signal_calc import CN_est
+from lidar_wind_toolbox.wind_calc import (
     build_Amatrix,
-    calc_sigma_single,
     consensus,
     find_num_dir,
     uvw_2_dir,
@@ -16,39 +15,35 @@ from .wind_calc import (
 )
 
 
-def lvl2vad_standard(
-    ds_tmp: xr.Dataset, date_chosen: datetime.datetime, confDict: dict[str, str]
+def lvl2wcdbs(
+    ds_comb: xr.Dataset, date_chosen: datetime.datetime, confDict: dict[str, str]
 ) -> xr.Dataset:
-    # read lidar parameters
     # number of gates
     n_gates = int(confDict["NUMBER_OF_GATES"])
     # number of pulses used in the data point aquisition
-    n = ds_tmp.prf.data
-    # number of points per range gate
-    M = ds_tmp.nsmpl.data
-    # half of detector bandwidth in velocity space
-    B = ds_tmp.nqv.data
+    B = (ds_comb.radial_wind_speed.max() - ds_comb.radial_wind_speed.min()).data / 2
+    lrg = ds_comb.range_gate_length.data
 
-    # filter Stares within scan
-    elevation = 90 - ds_tmp.zenith.data
-    azimuth = ds_tmp.azi.data[elevation < 89] % 360
-    time_ds = ds_tmp.time.data[elevation < 89]
-    dv = ds_tmp.dv.data[elevation < 89]
-    snr = ds_tmp.intensity.data[elevation < 89] - 1
-    beta = ds_tmp.beta.data[elevation < 89]
+    time_ds = pd.to_datetime(ds_comb.time.data, unit="s")
+    ds_comb["zenith"] = 90 - ds_comb.elevation
+    elevation = ds_comb.elevation.data
+    azimuth = ds_comb.azimuth.data
+    cnr = 10 ** (ds_comb.cnr.data / 10)
+    dv = ds_comb.radial_wind_speed.data
+    if "relative_beta" in list(ds_comb.keys()):
+        beta = ds_comb.relative_beta.data
+    else:
+        print("no backscatter data in file, set all beta to 1")
+        beta = np.ones(dv.shape)
+    if "measurement_height" in list(ds_comb.keys()):
+        height = ds_comb.measurement_height.data[0]
+    else:
+        height = (np.sin(ds_comb.elevation * np.pi / 180) * ds_comb.range).data[0]
 
-    height = ds_tmp.range.data * np.sin(np.nanmedian(elevation[elevation < 89]) * np.pi / 180)
-    width = ds_tmp.range.data * 2 * np.cos(np.nanmedian(elevation[elevation < 89]) * np.pi / 180)
-    height_bnds = ds_tmp.range_bnds.data
-    height_bnds[:, 0] = (
-        np.sin(np.nanmedian(elevation[elevation < 89]) * np.pi / 180) * (height_bnds[:, 0])
-    )
-    height_bnds[:, 1] = (
-        np.sin(np.nanmedian(elevation[elevation < 89]) * np.pi / 180) * (height_bnds[:, 1])
-    )
+    width = (np.cos(ds_comb.elevation * np.pi / 180) * ds_comb.range * 2).data
+    width = width[elevation < 89][0]
+    height_bnds = np.vstack([height - lrg / 2, height - lrg / 2]).T
 
-    # define time chunks
-    ## Look for UTC_OFFSET in config
     if "UTC_OFFSET" in confDict:
         time_delta = int(confDict["UTC_OFFSET"])
     else:
@@ -102,13 +97,10 @@ def lvl2vad_standard(
             for ii, t in enumerate(calc_idx)
         ]
     ).T
-
-    # compare n_gates in lvl1-file and confdict
     if n_gates != dv.shape[1]:
         print("Warning: number of gates in config does not match lvl1 data!")
         n_gates = dv.shape[1]
         print("number of gates changed to " + str(n_gates))
-
     # infer number of directions
     # don't forget to check for empty calc_idx
     time_valid = [ii for ii, x in enumerate(calc_idx) if len(x[0]) != 0]
@@ -125,6 +117,7 @@ def lvl2vad_standard(
 
     for kk in time_valid:
         print("processed " + str(np.floor(100 * kk / (len(calc_idx) - 1))) + " %")
+        # read lidar parameters
         n_rays = int(confDict["NUMBER_OF_DIRECTIONS"])
         indicator, n_rays, azi_mean, azi_edges = find_num_dir(n_rays, calc_idx, azimuth, kk)
         r_phi = 360 / n_rays / 2
@@ -132,14 +125,23 @@ def lvl2vad_standard(
             print("some issue with the data", n_rays, len(azi_mean), time_start[kk])
             continue
         else:
-            VR = dv[calc_idx[kk]]
-            SNR = snr[calc_idx[kk]]
-            BETA = beta[calc_idx[kk]]
-            azi = azimuth[calc_idx[kk]]
-            ele = elevation[calc_idx[kk]]
+            VR = dv[calc_idx[kk]][elevation[calc_idx[kk]] < 89]
+            # only if vertical values exist
+            if np.any(elevation[calc_idx[kk]] > 89):
+                WR = dv[calc_idx[kk]][elevation[calc_idx[kk]] > 89]
+                # estimate consensus of vertical velocity data
+                w_cns, idx_tmp, tmp_tmp = consensus(
+                    WR, np.ones(WR.shape), np.ones(WR.shape), 2, 30, 0, B
+                )
+                WR_SPEC = tmp_tmp
+            CNR = cnr[calc_idx[kk]][elevation[calc_idx[kk]] < 89]
+            BETA = beta[calc_idx[kk]][elevation[calc_idx[kk]] < 89]
+            azi = azimuth[calc_idx[kk]][elevation[calc_idx[kk]] < 89]
+            ele = elevation[calc_idx[kk]][elevation[calc_idx[kk]] < 89]
 
             VR_CNSmax = np.full((len(azi_mean), n_gates), np.nan)
             VR_CNSunc = np.full((len(azi_mean), n_gates), np.nan)
+            CNR_CNS = np.full((len(azi_mean), n_gates), np.nan)
             SIGMA_CNS = np.full((len(azi_mean), n_gates), np.nan)
             ele_cns = np.full((len(azi_mean),), np.nan)
 
@@ -151,39 +153,33 @@ def lvl2vad_standard(
                 ## calculate consensus average
                 VR_CNSmax[ii, :], idx_tmp, VR_CNSunc[ii, :] = consensus(
                     VR[azi_idx],
-                    SNR[azi_idx],
+                    CNR[azi_idx],
                     BETA[azi_idx],
                     int(confDict["CNS_RANGE"]),
                     int(confDict["CNS_PERCENTAGE"]),
                     int(confDict["SNR_THRESHOLD"]),
                     B,
                 )
-                # next line is just experimental and might be useful in the future                                                                          )
-                # azi_CNS[ii,:]= np.array([np.nanmean(azi[azi_idx][xi]) for xi in idx_tmp.T])
-                # SNR_CNS[ii,:]= np.nanmean( np.where( idx_tmp
-                #                                , SNR[azi_idx]
-                #                                , np.nan)
-                #                          , axis=0)
-                sigma_tmp = calc_sigma_single(in_db(SNR[azi_idx]), M, n, 2 * B, 1.316)
-                # Probably an error in the calculation, but this is what's written in the IDL-code
-                # here: MRSE (mean/root/sum/square)
-                # I woulf recommend changing it to RMSE (root/mean/square)
-                # SIGMA_CNS[ii,:] = np.sqrt(np.nansum( np.where( idx_tmp
-                #                                              , sigma_tmp**2
-                #                                              , np.nan)
-                #                                     , axis=0)
-                #                         )/np.sum(idx_tmp, axis=0)
-                SIGMA_CNS[ii, :] = np.ma.divide(
-                    np.sqrt(np.nansum(np.where(idx_tmp, sigma_tmp**2, np.nan), axis=0)),
-                    np.sum(idx_tmp, axis=0),
+                CNR_CNS[ii, :] = (
+                    np.ma.masked_where(~idx_tmp, CNR[azi_idx]).mean(axis=0).filled(np.nan)
                 )
-                ## calculate BETA, with consensus indices
-                # BETA_CNS[ii,:]= np.nanmean(np.where(idx_tmp
-                #                            ,BETA[azi_idx]
-                #                            ,np.nan), axis=0)
 
+                SIGMA_CNS[ii, :] = VR_CNSunc[ii, :]
+            if np.any(elevation[calc_idx[kk]] > 89):
+                #         Add vertical Stares to azimuth consensus
+                VR_CNSmax = np.vstack([VR_CNSmax, w_cns])
+                SIGMA_CNS = np.vstack([SIGMA_CNS, WR_SPEC])
+                azi_mean = np.hstack([azi_mean, 0])
+                ele_cns = np.hstack([ele_cns, 90])
+            #         WR_filt = hp.lidar_wind_toolbox.filter_by_snr(WR, CNR_WR, -18).filled(np.nan)
+            #         SPEC_filt = hp.lidar_wind_toolbox.filter_by_snr(WR, CNR_WR, -18).filled(np.nan)
+            #         VR_CNSmax = np.vstack([VR_CNSmax, WR_filt])
+            #         SIGMA_CNS = np.vstack([SIGMA_CNS, SPEC_filt])
+            #         azi_mean = np.hstack([azi_mean, np.zeros(WR_filt.shape[0])])
+            #         ele_cns = np.hstack([ele_cns, 90*np.ones(WR_filt.shape[0])])
             #     # This approach avoids looping over all range gates, but the method is not as stable
             n_good_kk = (~np.isnan(VR_CNSmax)).sum(axis=0)
+
             n_good[kk, :] = n_good_kk
             V_r = np.ma.masked_where(
                 (np.isnan(VR_CNSmax)),
@@ -230,7 +226,6 @@ def lvl2vad_standard(
                     ).real,
                 )
             )
-
             # plausible winds can only be calculated, when the at least three LOS measurements are present
             UVWunc[kk, np.sum(~np.isnan(VR_CNSmax.T), axis=1) < 4, :] = np.squeeze(
                 np.full((3, 1), np.nan)
@@ -310,6 +305,7 @@ def lvl2vad_standard(
     if np.all(np.isnan(speed)):
         print("WARNING: bad retrieval quality")
         print("all retrieved velocities are NaN -> check nvrad threshold!")
+    ## save processed data to netCDF
 
     ## add configuration used to create the file
     configuration = """"""
@@ -321,7 +317,6 @@ def lvl2vad_standard(
     else:
         NN = 0
 
-    ## save processed data to xarray dataset
     return xr.Dataset(
         {
             "config": ([], configuration, {"standard_name": "configuration_file"}),

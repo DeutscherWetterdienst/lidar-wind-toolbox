@@ -5,7 +5,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from .wind_proc import lvl2vad_standard, lvl2wcdbs
+from .wind_proc import lvl2vad_standard
+from .retrieval.windcube import lvl2wcdbs
 
 
 def process_dataset(
