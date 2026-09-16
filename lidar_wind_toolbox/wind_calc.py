@@ -4,19 +4,6 @@ import operator as op
 import numpy as np
 
 
-def build_Amatrix(azimuth_vec, elevation_vec):
-    return np.einsum(
-        "ij -> ji",
-        np.vstack(
-            [
-                np.sin((np.pi / 180) * azimuth_vec) * np.sin((np.pi / 180) * (90 - elevation_vec)),
-                np.cos((np.pi / 180) * azimuth_vec) * np.sin((np.pi / 180) * (90 - elevation_vec)),
-                np.cos((np.pi / 180) * (90 - elevation_vec)),
-            ]
-        ),
-    )
-
-
 def uvw_2_spd(uvw, uvw_unc):
     if (np.isfinite(uvw[0]) * np.isfinite(uvw[1])) & (~np.isnan(uvw[0]) * ~np.isnan(uvw[1])):
         speed = np.sqrt((uvw[0]) ** 2.0 + (uvw[1]) ** 2.0)

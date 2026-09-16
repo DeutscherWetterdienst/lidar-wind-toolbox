@@ -26,13 +26,13 @@ from .main_proc import process_dataset, write_netcdf
 from .plot_helpers import ql_helper
 from .signal_calc import CN_est, in_db
 from .wind_calc import (
-    build_Amatrix,
     calc_sigma_single,
     consensus,
     find_num_dir,
     uvw_2_dir,
     uvw_2_spd,
 )
+from .retrieval.geometry import build_Amatrix
 
 ColorKey = Literal["red", "green", "blue", "alpha"]
 

@@ -5,9 +5,9 @@ import pandas as pd
 import xarray as xr
 from scipy.linalg import diagsvd
 
+from lidar_wind_toolbox.retrieval.geometry import build_Amatrix
 from lidar_wind_toolbox.signal_calc import CN_est, in_db
 from lidar_wind_toolbox.wind_calc import (
-    build_Amatrix,
     calc_sigma_single,
     consensus,
     find_num_dir,
