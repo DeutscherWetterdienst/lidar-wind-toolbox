@@ -105,10 +105,13 @@ def calc_node_degree(Vr, CNS_range, B, metric="l1norm"):
         def f_abs_pairdiff(x, y):
             return op.abs(op.sub(x, y)) < CNS_range
 
-    if metric == "l1norm_aa":
+    elif metric == "l1norm_aa":
 
         def f_abs_pairdiff(x, y):
             return op.sub(B, op.abs(op.sub(op.abs(op.sub(x, y)), B))) < CNS_range
+
+    else:
+        raise ValueError(f"Unsupported metric: {metric!r}")
 
     with np.errstate(invalid="ignore"):
         return np.array(
