@@ -103,9 +103,15 @@ def consensus(Vr, SNR, BETA, CNS_range, CNS_percentage, SNR_threshold, B):
 def calc_node_degree(Vr, CNS_range, B, metric="l1norm"):
     """takes masked array as input"""
     if metric == "l1norm":
-        f_abs_pairdiff = lambda x, y: op.abs(op.sub(x, y)) < CNS_range
+
+        def f_abs_pairdiff(x, y):
+            return op.abs(op.sub(x, y)) < CNS_range
+
     if metric == "l1norm_aa":
-        f_abs_pairdiff = lambda x, y: op.sub(B, op.abs(op.sub(op.abs(op.sub(x, y)), B))) < CNS_range
+
+        def f_abs_pairdiff(x, y):
+            return op.sub(B, op.abs(op.sub(op.abs(op.sub(x, y)), B))) < CNS_range
+
     with np.errstate(invalid="ignore"):
         return np.array(
             list(
