@@ -58,3 +58,28 @@ def test_plot_level1_backscatter_quicklook_returns_figure() -> None:
 
     assert fig.axes
     plt.close(fig)
+
+
+def test_plot_level1_backscatter_accepts_native_windcube_dataset() -> None:
+    dataset = xr.Dataset(
+        data_vars={
+            "cnr": (("time", "range"), np.array([[-5.0, -10.0]])),
+            "azimuth": (("time",), np.array([0.0])),
+            "elevation": (("time",), np.array([75.0])),
+        },
+        coords={
+            "time": np.array(["2026-01-01T00:00:00"], dtype="datetime64[s]"),
+            "range": np.array([50.0, 100.0]),
+        },
+    )
+
+    fig = plot_level1_backscatter_quicklook(
+        dataset,
+        day=date(2026, 1, 1),
+        system="windcube",
+    )
+
+    try:
+        assert fig.axes
+    finally:
+        plt.close(fig)
