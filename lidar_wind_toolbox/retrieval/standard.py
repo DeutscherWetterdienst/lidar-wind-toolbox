@@ -5,8 +5,8 @@ import pandas as pd
 import xarray as xr
 from scipy.linalg import diagsvd
 
-from .signal_calc import CN_est, in_db
-from .wind_calc import (
+from lidar_wind_toolbox.signal_calc import CN_est, in_db
+from lidar_wind_toolbox.wind_calc import (
     build_Amatrix,
     calc_sigma_single,
     consensus,
