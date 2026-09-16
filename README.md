@@ -20,6 +20,57 @@ transitional.
 At the moment the public processing entry point is best understood as a
 VAD wind-profile retrieval for WindCube radial data.
 
+## Data Levels and Processing Stages
+
+The toolbox distinguishes between three stages of data representation:
+
+```text
+Device
+  │  Download
+  ▼
+Native Instrument Files (NetCDF)
+  │  Assembly, harmonization, time-window selection
+  ▼
+Level-1 Dataset (xarray.Dataset)
+  │  VAD inversion, consensus filtering, QC metrics
+  ▼
+Level-2 Product (xarray.Dataset)
+```
+
+### 1. Native Instrument Files (Raw Downloads)
+
+The NetCDF files downloaded from the device are not uncalibrated raw detector signals (photodiode ADC samples). The instrument firmware has already computed line-of-sight Doppler spectra, peak velocities, and signal-to-noise ratios.
+
+- **Content**: Line-of-sight observations along single laser beams.
+- **Key variables**: `radial_wind_speed`, `cnr`, `doppler_spectrum_width`, `azimuth`, `elevation`, `range`.
+- **Granularity**: One file typically spans a single scan sweep or an interval of 10–11 minutes.
+
+### 2. Level 1: Harmonized Radial Observations
+
+Level 1 combines multiple native files into a consistent, time-aligned daily observation dataset.
+
+- **Process**: Reads sweep groups, concatenates along the time axis, filters by day bounds, and standardizes variable naming and coordinates.
+- **Content**: Cleaned and continuous time series of all radial beams for the processing window.
+- **Key variables**: Radial Doppler velocity, carrier-to-noise ratio (CNR), scan geometry (`azimuth`, `elevation`), gate bounds, and instrument metadata.
+
+### 3. Level 2: Retrieved Wind Profiles
+
+Level 2 transforms radial velocity measurements from multiple azimuth angles into a vertical profile of the three-dimensional wind vector using Velocity Azimuth Display (VAD) analysis.
+
+- **Process**: 
+  - Groups radial rays into regular temporal windows (e.g. 10 or 30 minutes).
+  - Applies consensus averaging per azimuth direction to reject turbulent or noisy outliers.
+  - Solves the linear geometric inversion system ($v_r = \mathbf{A} \cdot [u, v, w]^T$) via Singular Value Decomposition (SVD).
+  - Evaluates geometric condition numbers ($CN$), model fit quality ($R^2$), and minimum ray counts ($N_{\text{vrad}}$).
+- **Key variables**: Horizontal and vertical wind components (`u`, `v`, `w`), scalar wind speed (`wspeed`), wind direction (`wdir`), uncertainties (`erru`, `errv`, `errw`, `errwspeed`, `errwdir`), and the primary quality flag (`qwind`).
+
+### Quality Indicators vs. Processing Level
+
+Processing levels indicate the **degree of geophysical derivation**, not whether an individual data point is valid. Quality metrics exist at every level:
+
+- **Level 1**: Evaluated primarily via `cnr` (Carrier-to-Noise Ratio in dB) and Doppler spectral width.
+- **Level 2**: Evaluated via consensus cluster size, collinearity check ($CN \le \text{threshold}$), reconstruction fit ($R^2 \ge \text{threshold}$), and available beam count ($N_{\text{vrad}}$). Data points passing all criteria are flagged as valid (`qwind == 1`).
+
 ## Installation
 
 ```bash
