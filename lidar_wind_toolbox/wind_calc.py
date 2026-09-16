@@ -1,5 +1,4 @@
 import itertools as it
-import operator as op
 
 import numpy as np
 
@@ -50,23 +49,6 @@ def grouper(iterable, n, fillvalue=None):
 
     args = [iter(iterable)] * n
     return it.zip_longest(*args, fillvalue=fillvalue)
-
-
-def calc_node_degree(Vr, CNS_range, B, metric="l1norm"):
-    """takes masked array as input"""
-    if metric == "l1norm":
-        f_abs_pairdiff = lambda x, y: op.abs(op.sub(x, y)) < CNS_range
-    if metric == "l1norm_aa":
-        f_abs_pairdiff = lambda x, y: op.sub(B, op.abs(op.sub(op.abs(op.sub(x, y)), B))) < CNS_range
-    with np.errstate(invalid="ignore"):
-        return np.array(
-            list(
-                grouper(
-                    it.starmap(f_abs_pairdiff, (it.permutations(Vr.filled(np.nan), 2))),
-                    Vr.shape[0] - 1,
-                )
-            )
-        ).sum(axis=1)
 
 
 def check_num_dir(n_rays, calc_idx, azimuth, idx_valid):
