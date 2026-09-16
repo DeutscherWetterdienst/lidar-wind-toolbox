@@ -10,8 +10,6 @@ import pandas as pd
 import xarray as xr
 
 from .readers.file_discovery import try_date
-from .readers.halo import read_hpl
-from .readers.windcube import read_wc_type, read_wcsradial
 
 
 class hpl_files(object):
@@ -217,6 +215,9 @@ class hpl_files(object):
         date_chosen: datetime.datetime,
         time_chosen: datetime.datetime | None = None,
     ) -> xr.Dataset:
+        from .readers.halo import read_hpl
+        from .readers.windcube import read_wc_type, read_wcsradial
+
         if confDict["SYSTEM"] == "halo":
             ds = xr.concat(
                 (read_hpl(iit, confDict) for iit in hpl_list.name),
