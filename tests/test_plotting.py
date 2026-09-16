@@ -39,6 +39,42 @@ def make_level1_dataset() -> xr.Dataset:
     )
 
 
+def make_legacy_level1_dataset() -> xr.Dataset:
+    return xr.Dataset(
+        data_vars={
+            "beta": (
+                ("time", "range"),
+                np.array([[1e-7, 2e-7]], dtype=np.float32),
+            ),
+            "azi": (
+                ("time",),
+                np.array([0.0], dtype=np.float32),
+            ),
+            "zenith": (
+                ("time",),
+                np.array([15.0], dtype=np.float32),
+            ),
+        },
+        coords={
+            "time": np.array(["2026-01-01T00:00:00"], dtype="datetime64[s]"),
+            "range": np.array([50.0, 100.0], dtype=np.float32),
+        },
+    )
+
+
+def test_plot_level1_backscatter_accepts_legacy_dataset() -> None:
+    fig = plot_level1_backscatter_quicklook(
+        make_legacy_level1_dataset(),
+        day=date(2026, 1, 1),
+        system="windcube",
+    )
+
+    try:
+        assert fig.axes
+    finally:
+        plt.close(fig)
+
+
 def test_plot_level2_wind_quicklook_returns_figure() -> None:
     fig = plot_level2_wind_quicklook(
         make_level2_dataset(),
