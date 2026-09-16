@@ -15,10 +15,16 @@ def ql_helper(ds: xr.Dataset, confDict: dict[str, str]):
             vmin, vmax = -40, 10
 
     # use equal names
-    try:
-        ds = ds.rename({"azimuth": "azi", "relative_beta": "beta"})
-    except:
-        ds["elevation"] = 90 - ds.zenith
+    rename_map: dict[str, str] = {}
+    if "azimuth" in ds.variables and "azi" not in ds.variables:
+        rename_map["azimuth"] = "azi"
+    if "relative_beta" in ds.variables and "beta" not in ds.variables:
+        rename_map["relative_beta"] = "beta"
+    if rename_map:
+        ds = ds.rename(rename_map)
+
+    if "elevation" not in ds.variables and "zenith" in ds.variables:
+        ds["elevation"] = 90 - ds["zenith"]
 
     # check if cycles need to be identified
     if len(np.unique(ds.azi.round() % 360)) < 4:
