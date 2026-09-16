@@ -5,11 +5,11 @@ import pandas as pd
 import xarray as xr
 from scipy.linalg import diagsvd
 
+from lidar_wind_toolbox.retrieval.consensus import consensus
 from lidar_wind_toolbox.retrieval.geometry import build_Amatrix, uvw_2_dir, uvw_2_spd
 from lidar_wind_toolbox.signal_calc import CN_est, in_db
 from lidar_wind_toolbox.wind_calc import (
     calc_sigma_single,
-    consensus,
     find_num_dir,
 )
 
