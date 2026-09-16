@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from .readers.file_discovery import try_date
 from .retrieval.uncertainty import calc_sigma_single
 
 
@@ -19,15 +20,6 @@ class hpl_files(object):
     def __init__(self, name, time):
         self.name = name
         self.time = time
-
-    @staticmethod
-    def try_date(text: str) -> datetime.datetime:
-        for fmt in ("%Y%m%dT%H", "%Y%m%dT%H%M%S"):
-            try:
-                return datetime.datetime.strptime(text, fmt)
-            except ValueError:
-                pass
-        raise ValueError("no valid date format found")
 
     @staticmethod
     def make_file_list(
@@ -116,9 +108,7 @@ class hpl_files(object):
             )
 
         file_time = [
-            hpl_files.try_date(
-                "T".join(re.sub("-", "", x.stem).split(fileparts_separator)[ind_date])
-            )
+            try_date("T".join(re.sub("-", "", x.stem).split(fileparts_separator)[ind_date]))
             for x in files
         ]
         files_sorted = [files[idx] for idx in np.argsort(file_time).astype(int)]
