@@ -36,6 +36,20 @@ def _cmap_discretize(cmap: str | mcolors.Colormap, n: int) -> mcolors.Colormap:
     return mcolors.LinearSegmentedColormap(cmap.name + f"_{n}", cdict, 1024)
 
 
+def _to_date2num(time_values: np.ndarray | xr.DataArray | Sequence[object]) -> np.ndarray:
+    """Convert dataset or helper time values into Matplotlib date numbers."""
+    values = np.asarray(time_values)
+    if values.size == 0:
+        return np.array([], dtype=np.float64)
+
+    if np.issubdtype(values.dtype, np.number):
+        time_dt = pd.to_datetime(values, unit="s")
+    else:
+        time_dt = pd.to_datetime(values)
+
+    return np.asarray(mdates.date2num(time_dt))
+
+
 def plot_level2_wind_quicklook(
     dataset: xr.Dataset,
     *,
@@ -49,7 +63,8 @@ def plot_level2_wind_quicklook(
     ax.spines["top"].set_linewidth(2)
     ax.spines["bottom"].set_linewidth(2)
 
-    x_mesh, y_mesh = np.meshgrid(dataset.time.data, dataset.height.data)
+    time_num = _to_date2num(dataset.time.data)
+    x_mesh, y_mesh = np.meshgrid(time_num, dataset.height.data)
     u = np.copy(dataset.u.data)
 
     if np.all(np.isnan(u)):
@@ -62,7 +77,14 @@ def plot_level2_wind_quicklook(
     qwind = qwind * (
         np.sqrt(u**2 + v**2, out=np.zeros_like(u), where=~np.isnan(u**2 + v**2)) >= 2.5
     )
-    mask = qwind < 1
+    mask = (
+        (qwind < 1)
+        | (u == -999.0)
+        | (v == -999.0)
+        | (wind_speed == -999.0)
+        | np.isnan(u)
+        | np.isnan(v)
+    )
 
     masked_u = np.ma.masked_where(mask, u)
     masked_v = np.ma.masked_where(mask, v)
@@ -116,9 +138,9 @@ def plot_level2_wind_quicklook(
     ax.set_xlabel(day.strftime("%Y-%m-%d") + "\n" + "time (UTC)", fontsize=22)
     ax.set_ylabel(r"$\rm{height}\;/\;\rm{m}$", fontsize=22)
 
-    valid_height_indices = np.unravel_index(qwind == 1, wind_speed.shape)
-    if np.any(np.sum(valid_height_indices[1], axis=0).astype(bool)):
-        hmax = dataset.height.data[np.sum(valid_height_indices[1], axis=0).astype(bool)][-1]
+    valid_height_mask = np.any(qwind == 1, axis=0)
+    if np.any(valid_height_mask):
+        hmax = float(dataset.height.data[valid_height_mask][-1])
     else:
         hmax = float(dataset.height.data[-1])
 
@@ -145,7 +167,14 @@ def plot_level2_wind_quicklook(
         )
         < 2.5
     )
-    low_mask = qwind_low < 1
+    low_mask = (
+        (qwind_low < 1)
+        | (u == -999.0)
+        | (v == -999.0)
+        | (wind_speed == -999.0)
+        | np.isnan(u)
+        | np.isnan(v)
+    )
 
     masked_u_low = np.ma.masked_where(low_mask, np.copy(dataset.u.data))
     masked_v_low = np.ma.masked_where(low_mask, np.copy(dataset.v.data))
@@ -205,43 +234,36 @@ def plot_level1_backscatter_quicklook(
     ax.spines["bottom"].set_linewidth(2)
 
     plot_dataset = dataset.copy()
+    if "range" not in plot_dataset.variables and "range" not in plot_dataset.coords:
+        if "gate_index" in plot_dataset.dims:
+            rgl = (
+                float(plot_dataset["range_gate_length"].values)
+                if "range_gate_length" in plot_dataset.variables
+                else 75.0
+            )
+            plot_dataset["range"] = ("gate_index", (plot_dataset["gate_index"].values + 0.5) * rgl)
+
     if "zenith" not in plot_dataset.variables and "elevation" in plot_dataset.variables:
         plot_dataset["zenith"] = 90 - plot_dataset["elevation"]
 
+    has_beta = ("relative_beta" in dataset.variables) or ("beta" in dataset.variables)
+
     config_dict = {"SYSTEM": system}
     beta_max, time_mean, range_vec, elevation, vmin, vmax = ql_helper(plot_dataset, config_dict)
 
-    x_mesh, y_mesh = np.meshgrid(
-        mdates.date2num(pd.to_datetime(time_mean)),
-        range_vec * np.sin(np.pi / 180 * elevation.mean()),
-    )
+    time_num = _to_date2num(time_mean)
+    elev_val = float(np.nanmean(elevation)) if np.size(elevation) > 0 else 75.0
+    y_coords = np.asarray(range_vec) * np.sin(np.pi / 180.0 * elev_val)
+
+    x_mesh, y_mesh = np.meshgrid(time_num, y_coords)
     z_values = np.copy(beta_max)
 
     if np.all(np.isnan(z_values)):
         return fig
 
-    mask = np.isnan(z_values)
+    mask = np.isnan(z_values) | (z_values == -999.0)
     masked_z = np.ma.masked_where(mask, z_values)
 
-    # Determine whether true backscatter data exists BEFORE ql_helper mutates the dataset
-    has_beta = ("relative_beta" in plot_dataset.variables) or ("beta" in plot_dataset.variables)
-
-    config_dict = {"SYSTEM": system}
-    beta_max, time_mean, range_vec, elevation, vmin, vmax = ql_helper(plot_dataset, config_dict)
-
-    x_mesh, y_mesh = np.meshgrid(
-        mdates.date2num(pd.to_datetime(time_mean)),
-        range_vec * np.sin(np.pi / 180 * elevation.mean()),
-    )
-    z_values = np.copy(beta_max)
-
-    if np.all(np.isnan(z_values)):
-        return fig
-
-    mask = np.isnan(z_values)
-    masked_z = np.ma.masked_where(mask, z_values)
-
-    # Use LogNorm only for positive physical backscatter; linear norm for CNR in dB (vmin <= 0)
     if has_beta and vmin > 0:
         color_mesh = ax.pcolormesh(
             x_mesh.T,
@@ -257,8 +279,8 @@ def plot_level1_backscatter_quicklook(
             y_mesh.T,
             masked_z,
             cmap=cm.gnuplot2,
-            vmin=vmin,
-            vmax=vmax,
+            vmin=-40.0,
+            vmax=10.0,
         )
         cbar_label = r"$\rm{CNR}\;/\;\rm{dB}$"
 
@@ -282,7 +304,7 @@ def plot_level1_backscatter_quicklook(
         mdates.HourLocator(byhour=np.mod(range(0 - utc_offset_hours, 24 - utc_offset_hours, 1), 24))
     )
 
-    hmax = range_vec[-1] * np.sin(np.pi / 180 * elevation.mean())
+    hmax = float(range_vec[-1] * np.sin(np.pi / 180.0 * elev_val)) if len(range_vec) > 0 else 6000.0
     if hmax >= 6000:
         delmajor = 2000
         delnom = 4

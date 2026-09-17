@@ -119,3 +119,39 @@ def test_plot_level1_backscatter_accepts_native_windcube_dataset() -> None:
         assert fig.axes
     finally:
         plt.close(fig)
+
+
+def test_plot_quicklooks_handle_float_unix_timestamps() -> None:
+    l2 = xr.Dataset(
+        data_vars={
+            "u": (("time", "height"), np.array([[3.0, 4.0]], dtype=np.float32)),
+            "v": (("time", "height"), np.array([[4.0, 3.0]], dtype=np.float32)),
+            "wspeed": (("time", "height"), np.array([[5.0, 5.0]], dtype=np.float32)),
+            "qwind": (("time", "height"), np.array([[1, 1]], dtype=np.int8)),
+        },
+        coords={
+            "time": np.array([1767225600.0], dtype=np.float64),
+            "height": np.array([100.0, 200.0], dtype=np.float32),
+        },
+    )
+    l1 = xr.Dataset(
+        data_vars={
+            "cnr": (("time", "range"), np.array([[-5.0, -10.0]], dtype=np.float32)),
+            "azimuth": (("time",), np.array([0.0], dtype=np.float32)),
+            "elevation": (("time",), np.array([75.0], dtype=np.float32)),
+        },
+        coords={
+            "time": np.array([1767225600.0], dtype=np.float64),
+            "range": np.array([50.0, 100.0], dtype=np.float32),
+        },
+    )
+
+    fig_l2 = plot_level2_wind_quicklook(l2, day=date(2026, 1, 1))
+    fig_l1 = plot_level1_backscatter_quicklook(l1, day=date(2026, 1, 1), system="windcube")
+
+    try:
+        assert fig_l2.axes
+        assert fig_l1.axes
+    finally:
+        plt.close(fig_l2)
+        plt.close(fig_l1)
