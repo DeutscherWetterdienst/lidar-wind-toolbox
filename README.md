@@ -189,6 +189,21 @@ save_figure(fig1, Path("backscatter.png"))
 save_figure(fig2, Path("wind.png"))
 ```
 
+## Quicklooks
+
+The plotting helpers generate quicklook figures for visual inspection and
+quality control.
+
+The Level-1 backscatter quicklook shows the temporal and vertical structure of
+backscatter or, when backscatter is unavailable, CNR.
+
+The Level-2 wind quicklook shows wind speed, horizontal wind vectors, altitude,
+time, and the applied wind-quality flag.
+
+Quicklooks are intended for monitoring, plausibility checks, and debugging.
+They are not a substitute for quantitative analysis or the Level-1/Level-2
+NetCDF products.
+
 ## Writing datasets
 
 The package provides explicit helpers for writing netCDF datasets and figures:
