@@ -126,7 +126,7 @@ class hpl2netCDFClient(object):
     New code should use:
       - read_windcube_scan_files()
       - retrieve_windcube_vad()
-      - process_windcube_vad_files()
+      - process_windcube_vad_files_daily()
       - dataset-based plotting helpers
     """
 

@@ -13,7 +13,7 @@ from .models import (
     WindRetrievalSettings,
 )
 from .processing import (
-    process_windcube_vad_files,
+    process_windcube_vad_files_daily,
     read_windcube_scan_files,
     retrieve_windcube_vad,
 )
@@ -28,7 +28,7 @@ __all__ = [
     "UnsupportedScanTypeError",
     "WindCubeLevel1ReaderSettings",
     "WindRetrievalSettings",
-    "process_windcube_vad_files",
+    "process_windcube_vad_files_daily",
     "read_windcube_scan_files",
     "retrieve_windcube_vad",
     "save_figure",

@@ -8,7 +8,7 @@ from lidar_wind_toolbox import (
     ProductMetadata,
     WindCubeLevel1ReaderSettings,
     WindRetrievalSettings,
-    process_windcube_vad_files,
+    process_windcube_vad_files_daily,
     save_figure,
     write_dataset,
 )
@@ -66,7 +66,7 @@ reader_settings = WindCubeLevel1ReaderSettings(
     focus_m=500.0,
 )
 
-level1, level2 = process_windcube_vad_files(
+level1, level2 = process_windcube_vad_files_daily(
     files=files,
     context=context,
     reader_settings=reader_settings,

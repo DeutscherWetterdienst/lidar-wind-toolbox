@@ -48,7 +48,7 @@ def read_windcube_scan_files(
     )
 
 
-def process_windcube_vad_files(
+def process_windcube_vad_files_daily(
     files: list[Path],
     *,
     context: ProcessingContext,

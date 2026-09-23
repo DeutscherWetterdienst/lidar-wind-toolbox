@@ -14,7 +14,7 @@ from lidar_wind_toolbox.models import (
     WindRetrievalSettings,
 )
 from lidar_wind_toolbox.processing import (
-    process_windcube_vad_files,
+    process_windcube_vad_files_daily,
     read_windcube_scan_files,
     retrieve_windcube_vad,
 )
@@ -192,7 +192,7 @@ def test_read_windcube_scan_files_uses_explicit_reader_settings(
     assert conf_dict["FOCUS"] == str(reader_settings.focus_m)
 
 
-def test_process_windcube_vad_files_returns_level1_and_level2(
+def test_process_windcube_vad_files_daily_returns_level1_and_level2(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     level1 = native_windcube_level1_dataset()
@@ -225,7 +225,7 @@ def test_process_windcube_vad_files_returns_level1_and_level2(
     monkeypatch.setattr("lidar_wind_toolbox.processing.read_windcube_scan_files", fake_read)
     monkeypatch.setattr("lidar_wind_toolbox.processing.retrieve_windcube_vad", fake_retrieve)
 
-    result_level1, result_level2 = process_windcube_vad_files(
+    result_level1, result_level2 = process_windcube_vad_files_daily(
         [Path("one.nc"), Path("two.nc")],
         context=make_context(),
         reader_settings=make_reader_settings(),

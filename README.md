@@ -90,7 +90,7 @@ from lidar_wind_toolbox import (
     ProductMetadata,
     WindCubeLevel1ReaderSettings,
     WindRetrievalSettings,
-    process_windcube_vad_files,
+    process_windcube_vad_files_daily,
 )
 
 context = ProcessingContext(
@@ -137,7 +137,7 @@ reader_settings = WindCubeLevel1ReaderSettings(
     focus_m=500.0,
 )
 
-level1, level2 = process_windcube_vad_files(
+level1, level2 = process_windcube_vad_files_daily(
     files=[
         Path("WLS200s-197_2026-01-01_00-00-59_vad_303_50m.nc"),
         Path("WLS200s-197_2026-01-01_00-11-10_vad_303_50m.nc"),
