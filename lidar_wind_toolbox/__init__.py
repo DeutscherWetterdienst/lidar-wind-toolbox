@@ -17,6 +17,7 @@ from .processing import (
     read_windcube_scan_files,
     retrieve_windcube_vad,
 )
+from .time_windows import build_processing_intervals, normalize_utc
 
 __all__ = [
     "LidarWindToolboxError",
@@ -33,4 +34,6 @@ __all__ = [
     "retrieve_windcube_vad",
     "save_figure",
     "write_dataset",
+    "build_processing_intervals",
+    "normalize_utc",
 ]
