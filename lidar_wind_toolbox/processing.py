@@ -232,6 +232,17 @@ def _legacy_config(
         "N_VRAD_THRESHOLD": str(context.retrieval.minimum_radial_velocities),
         "R2_THRESHOLD": str(context.retrieval.r2_threshold),
         "BLINDZONE_GATES": str(context.retrieval.blindzone_gates),
+        "EXPERIMENTAL_WIND_RETRIEVAL": str(int(context.retrieval.use_experimental_retrieval)),
+        "AZIMUTH_OFFSET": str(context.retrieval.azimuth_offset_deg),
+        "EX_AZI": ",".join(str(value) for value in context.retrieval.excluded_azimuths_deg),
+        **(
+            {"N_HORI_DIRECTIONS": str(context.retrieval.horizontal_directions)}
+            if context.retrieval.horizontal_directions is not None
+            else {}
+        ),
+        "CNS_RANGE_VERTICAL": _fmt(context.retrieval.vertical_consensus_range_mps),
+        "CNS_PERCENTAGE_VERTICAL": _fmt(context.retrieval.vertical_consensus_percentage),
+        "SNR_THRESHOLD_VERTICAL": _fmt(context.retrieval.vertical_snr_threshold_db),
         "VERSION": context.processing_version,
         "NC_TITLE": context.product.title,
         "NC_INSTITUTION": context.product.institution,

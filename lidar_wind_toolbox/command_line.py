@@ -73,6 +73,9 @@ def main() -> None:
             "l2wql",
             "hpl_l1_l2nrt",
             "hpl_l2nrt",
+            "l1_stare_l2",
+            "l1_stare_l2wql",
+            "starewql",
         ],
         help=textwrap.dedent(
             """Send a command. Supported commands:
@@ -83,6 +86,9 @@ def main() -> None:
         l1_l2wql - combines hpl to daily and processes directly to lvl2 netCDF and creates quicklooks
         l1wql - takes lvl1 netCDF file and creates backscatter quicklook
         l2wql - takes lvl2 netCDF file and creates backscatter quicklook
+        l1_stare_l2 - creates experimental stare L2 from stare L1 and wind L2
+        l1_stare_l2wql - creates stare L2 and quicklooks
+        starewql - creates quicklooks from existing stare L2
         Note that directory paths will be taken from the configuration file!"""
         ),
     )
@@ -121,3 +127,10 @@ def main() -> None:
         proc_dl.nrtlvl1()
         proc_dl.nrtlvl2()
         proc_dl.rmlvl1()
+
+    if args.cmd == "l1_stare_l2":
+        proc_dl.dailystare()
+    if args.cmd == "l1_stare_l2wql":
+        proc_dl.dailystarewql()
+    if args.cmd == "starewql":
+        proc_dl.stareql()

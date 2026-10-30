@@ -40,6 +40,13 @@ class WindRetrievalSettings:
     condition_number_threshold: float
     r2_threshold: float
     blindzone_gates: int = 0
+    use_experimental_retrieval: bool = False
+    azimuth_offset_deg: float = 0.0
+    excluded_azimuths_deg: tuple[float, ...] = ()
+    horizontal_directions: int | None = None
+    vertical_consensus_range_mps: float = 2.0
+    vertical_consensus_percentage: float = 30.0
+    vertical_snr_threshold_db: float = 0.0
 
     def __post_init__(self) -> None:
         if self.number_of_directions < 3:
@@ -54,6 +61,12 @@ class WindRetrievalSettings:
             raise ValueError("condition_number_threshold must be positive")
         if not 0 <= self.r2_threshold <= 1:
             raise ValueError("r2_threshold must be in [0, 1]")
+        if self.horizontal_directions is not None and self.horizontal_directions < 1:
+            raise ValueError("horizontal_directions must be positive")
+        if self.vertical_consensus_range_mps <= 0:
+            raise ValueError("vertical_consensus_range_mps must be positive")
+        if not 0 <= self.vertical_consensus_percentage <= 100:
+            raise ValueError("vertical_consensus_percentage must be in [0, 100]")
         if self.blindzone_gates < 0:
             raise ValueError("blindzone_gates must not be negative")
 

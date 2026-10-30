@@ -25,6 +25,8 @@ from .hpl_files import hpl_files
 from .main_proc import process_dataset, write_netcdf
 from .plot_helpers import ql_helper
 from .signal_calc import CN_est, in_db
+from .stare_proc import build_stare_l2_filename, run_stare_l2_daily
+from .stare_ql import write_stare_l2_quicklooks
 from .wind_calc import (
     find_num_dir,
 )
@@ -415,27 +417,31 @@ class hpl2netCDFClient(object):
             print(
                 "saving wind retrieval quicklook as... \n ... "
                 + str(
-                    "{}/"
-                    + confDict["NC_L2_BASENAME"]
-                    + "ql_"
-                    + date_chosen.strftime("%Y%m%d")
-                    + "_"
-                    + str(confDict["AVG_MIN"])
-                    + "min"
-                    + ".png"
+                    "{}"
+                    / Path(
+                        confDict["NC_L2_BASENAME"]
+                        + "ql_"
+                        + date_chosen.strftime("%Y%m%d")
+                        + "_"
+                        + str(confDict["AVG_MIN"])
+                        + "min"
+                        + ".png"
+                    )
                 ).format(path)
             )
             path.mkdir(parents=True, exist_ok=True)
             fig.savefig(
                 str(
-                    "{}/"
-                    + confDict["NC_L2_BASENAME"]
-                    + "ql_"
-                    + date_chosen.strftime("%Y%m%d")
-                    + "_"
-                    + str(confDict["AVG_MIN"])
-                    + "min"
-                    + ".png"
+                    "{}"
+                    / Path(
+                        confDict["NC_L2_BASENAME"]
+                        + "ql_"
+                        + date_chosen.strftime("%Y%m%d")
+                        + "_"
+                        + str(confDict["AVG_MIN"])
+                        + "min"
+                        + ".png"
+                    )
                 ).format(path),
                 transparent=False,
                 bbox_inches="tight",
@@ -564,22 +570,26 @@ class hpl2netCDFClient(object):
                 "saving backscatter quicklook as... \n ... "
                 + str(
                     "{}"
-                    + confDict["NC_L2_BASENAME"]
-                    + "bck_ql_"
-                    + date_chosen.strftime("%Y%m%d")
-                    + "_cycle_max"
-                    + ".png"
+                    / Path(
+                        confDict["NC_L2_BASENAME"]
+                        + "bck_ql_"
+                        + date_chosen.strftime("%Y%m%d")
+                        + "_cycle_max"
+                        + ".png"
+                    )
                 ).format(path)
             )
             path.mkdir(parents=True, exist_ok=True)
             fig.savefig(
                 str(
-                    "{}/"
-                    + confDict["NC_L2_BASENAME"]
-                    + "bck_ql_"
-                    + date_chosen.strftime("%Y%m%d")
-                    + "_cycle_max"
-                    + ".png"
+                    "{}"
+                    / Path(
+                        confDict["NC_L2_BASENAME"]
+                        + "bck_ql_"
+                        + date_chosen.strftime("%Y%m%d")
+                        + "_cycle_max"
+                        + ".png"
+                    )
                 ).format(path),
                 transparent=False,
                 bbox_inches="tight",
@@ -1416,3 +1426,22 @@ class hpl2netCDFClient(object):
         ds = xr.open_dataset(path)
         print(ds.info)
         ds.close()
+
+    def l2_stare_filename(self):
+        conf = config.gen_confDict(url=self.config_dir)
+        return build_stare_l2_filename(conf, self.date2proc, create_dir=False)
+
+    def dailystare(self, overwrite=True):
+        conf = config.gen_confDict(url=self.config_dir)
+        return run_stare_l2_daily(self.date2proc, conf, overwrite=overwrite)
+
+    def stareql(self):
+        conf = config.gen_confDict(url=self.config_dir)
+        path = Path(self.l2_stare_filename())
+        if not path.is_file():
+            raise FileNotFoundError(f"Missing stare L2 file for quicklooks: {path}")
+        return write_stare_l2_quicklooks(str(path), self.date2proc, conf)
+
+    def dailystarewql(self, overwrite=True):
+        outfile = self.dailystare(overwrite=overwrite)
+        return outfile, self.stareql()

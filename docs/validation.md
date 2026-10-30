@@ -5,9 +5,9 @@
 ## Regression checks
 
 ```bash
-python -m compileall -q hpl2netCDF_client
+python -m compileall -q lidar_wind_toolbox
 python -m pytest -q
-hpl2netCDF-client --help
+wind-lidar-process --help
 ```
 
 These cover imports/syntax, test command dispatch, output path conventions, wind-speed gap-fill provenance, and plotting on synthetic data. An installed package is required to run the CLI; `python -m pip install -e .` requires normal internet/package access for dependencies.

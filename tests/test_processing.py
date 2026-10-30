@@ -233,3 +233,50 @@ def test_process_windcube_vad_files_daily_returns_level1_and_level2(
 
     assert result_level1 is level1
     assert result_level2 is level2
+
+
+def test_typed_retrieval_passes_experimental_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    from dataclasses import replace
+
+    context = make_context()
+    context = replace(
+        context,
+        retrieval=replace(
+            context.retrieval,
+            use_experimental_retrieval=True,
+            azimuth_offset_deg=20.0,
+            excluded_azimuths_deg=(110.0,),
+            horizontal_directions=4,
+            vertical_consensus_range_mps=0.5,
+            vertical_consensus_percentage=60.0,
+            vertical_snr_threshold_db=-20.0,
+        ),
+    )
+    captured: dict[str, str] = {}
+
+    def fake_process(ds: xr.Dataset, day: datetime, cfg: dict[str, str]) -> xr.Dataset:
+        captured.update(cfg)
+        return xr.Dataset()
+
+    monkeypatch.setattr("lidar_wind_toolbox.processing.process_dataset", fake_process)
+    retrieve_windcube_vad(native_windcube_level1_dataset(), context)
+    assert captured["EXPERIMENTAL_WIND_RETRIEVAL"] == "1"
+    assert captured["AZIMUTH_OFFSET"] == "20.0"
+    assert captured["EX_AZI"] == "110.0"
+    assert captured["N_HORI_DIRECTIONS"] == "4"
+    assert captured["CNS_RANGE_VERTICAL"] == "0.5"
+    assert captured["CNS_PERCENTAGE_VERTICAL"] == "60"
+    assert captured["SNR_THRESHOLD_VERTICAL"] == "-20"
+
+
+@pytest.mark.parametrize("experimental", [False, True])
+def test_typed_retrieval_uses_original_by_default(experimental: bool) -> None:
+    from dataclasses import replace
+
+    context = make_context()
+    context = replace(
+        context,
+        retrieval=replace(context.retrieval, use_experimental_retrieval=experimental),
+    )
+    result = retrieve_windcube_vad(native_windcube_level1_dataset(), context)
+    assert ("snr_max" in result) is experimental

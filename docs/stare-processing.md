@@ -1,6 +1,6 @@
 # Experimental vertical-stare processing
 
-This guide describes the current implementation in `hpl2netCDF_client/stare_proc.py`, `stare_calc.py`, and `stare_ql.py`. It uses the provided [`stare_awi_288.conf`](../examples/stare_awi_288.conf) and the AWI S/N 288 L1 observations for **20 July 2024**. Retrievals are **experimental** and require independent scientific validation.
+This guide describes the current implementation in `lidar_wind_toolbox/stare_proc.py`, `stare_calc.py`, and `stare_ql.py`. It uses the provided [`stare_awi_288.conf`](../examples/stare_awi_288.conf) and the AWI S/N 288 L1 observations for **20 July 2024**. Retrievals are **experimental** and require independent scientific validation.
 
 ## 1. Inputs verified from the supplied AWI L1 file
 
@@ -69,7 +69,7 @@ This check is deliberately independent of the epsilon computation. Both real inp
 ## 4. Run the retrieval
 
 ```bash
-hpl2netCDF-client -u examples/stare_awi_288.conf -d 2024-07-20 -c l1_stare_l2
+wind-lidar-process -u examples/stare_awi_288.conf -d 2024-07-20 -c l1_stare_l2
 ```
 
 The processor reads both daily inputs, screens line-of-sight velocity using the intensity-derived signal, computes lagged autocovariances and a Lenschow-style noise correction, and estimates `epsilon` using an O'Connor-style relationship with the supporting horizontal wind speed. The supplied configuration uses 30-minute time bins and lag indices 0–5, fitting indices 1–5 **inclusively** (`xarray.sel(lag=slice(1,5))`).
@@ -77,20 +77,20 @@ The processor reads both daily inputs, screens line-of-sight velocity using the 
 To produce the Level-2 product **and** three quicklooks (dissipation rate, atmospheric variance, mean vertical velocity):
 
 ```bash
-hpl2netCDF-client -u examples/stare_awi_288.conf -d 2024-07-20 -c l1_stare_l2wql
+wind-lidar-process -u examples/stare_awi_288.conf -d 2024-07-20 -c l1_stare_l2wql
 ```
 
 To generate quicklooks from an **existing** stare L2 file, without rerunning retrieval:
 
 ```bash
-hpl2netCDF-client -u examples/stare_awi_288.conf -d 2024-07-20 -c starewql
+wind-lidar-process -u examples/stare_awi_288.conf -d 2024-07-20 -c starewql
 ```
 
 The Python API provides the same functionality:
 
 ```python
 from datetime import datetime
-from hpl2netCDF_client.hpl2netCDF_client import hpl2netCDFClient
+from lidar_wind_toolbox.hpl2netCDF_client import hpl2netCDFClient
 
 client = hpl2netCDFClient(
     "examples/stare_awi_288.conf", "l1_stare_l2", datetime(2024, 7, 20)

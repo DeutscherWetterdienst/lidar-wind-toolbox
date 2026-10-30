@@ -2,27 +2,29 @@
 
 These tests use small, synthetic Level-2 grids; they are not scientific validation.
 """
+
+import sys
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-import sys
+from unittest.mock import patch
 
 import matplotlib
+
 matplotlib.use("Agg")
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
 
-from hpl2netCDF_client.command_line import main
-from hpl2netCDF_client.config.config import config
-from hpl2netCDF_client.hpl2netCDF_client import hpl2netCDFClient
-from hpl2netCDF_client.stare_proc import (
+from lidar_wind_toolbox.command_line import main
+from lidar_wind_toolbox.config import config
+from lidar_wind_toolbox.hpl2netCDF_client import hpl2netCDFClient
+from lidar_wind_toolbox.stare_proc import (
     build_stare_l1_filename,
-    build_wind_l2_filename,
     build_stare_l2_filename,
+    build_wind_l2_filename,
 )
-from hpl2netCDF_client.stare_ql import write_stare_l2_quicklooks
+from lidar_wind_toolbox.stare_ql import write_stare_l2_quicklooks
 
 DATE = datetime(2024, 7, 20)
 EXAMPLE_CONF = Path(__file__).resolve().parents[1] / "examples" / "stare_awi_288.conf"
@@ -59,11 +61,17 @@ def synthetic_stare_l2(tmp_path):
     times = pd.date_range("2024-07-20 00:15", periods=4, freq="30min")
     heights = [48.0, 96.0, 144.0, 192.0]
     shape = (len(times), len(heights))
-    ds = xr.Dataset({
-        "epsilon": (("time", "height"), np.full(shape, 1e-4, dtype="f4")),
-        "atmospheric_variance": (("time", "height"), np.full(shape, 0.04, dtype="f4")),
-        "w_mean": (("time", "height"), np.linspace(-0.2, 0.2, np.prod(shape)).reshape(shape).astype("f4")),
-    }, coords={"time": times, "height": heights})
+    ds = xr.Dataset(
+        {
+            "epsilon": (("time", "height"), np.full(shape, 1e-4, dtype="f4")),
+            "atmospheric_variance": (("time", "height"), np.full(shape, 0.04, dtype="f4")),
+            "w_mean": (
+                ("time", "height"),
+                np.linspace(-0.2, 0.2, np.prod(shape)).reshape(shape).astype("f4"),
+            ),
+        },
+        coords={"time": times, "height": heights},
+    )
     l2_file = tmp_path / "input_stare_l2.nc"
     ds.to_netcdf(l2_file, engine="scipy")
     return l2_file
@@ -111,14 +119,19 @@ def test_stareql_reuses_existing_l2(tmp_path, synthetic_stare_l2):
     assert all(Path(v).is_file() for v in result.values())
 
 
-@pytest.mark.parametrize("cmd,expected", [
-    ("l1_stare_l2", "dailystare"),
-    ("l1_stare_l2wql", "dailystarewql"),
-    ("starewql", "stareql"),
-])
+@pytest.mark.parametrize(
+    "cmd,expected",
+    [
+        ("l1_stare_l2", "dailystare"),
+        ("l1_stare_l2wql", "dailystarewql"),
+        ("starewql", "stareql"),
+    ],
+)
 def test_stare_command_dispatch(cmd, expected):
-    with patch("hpl2netCDF_client.command_line.hpl2netCDFClient") as client_class:
-        with patch.object(sys, "argv", ["hpl2netCDF-client", "-u", "site.conf", "-d", "2024-07-20", "-c", cmd]):
+    with patch("lidar_wind_toolbox.command_line.hpl2netCDFClient") as client_class:
+        with patch.object(
+            sys, "argv", ["hpl2netCDF-client", "-u", "site.conf", "-d", "2024-07-20", "-c", cmd]
+        ):
             main()
         client = client_class.return_value
         getattr(client, expected).assert_called_once_with()
@@ -134,12 +147,15 @@ def test_cli_requires_explicit_configuration():
 
 
 def test_quicklook_prefix_fallback_preserves_legacy_naming(tmp_path):
-    from hpl2netCDF_client.stare_ql import build_stare_ql_filename
+    from lidar_wind_toolbox.stare_ql import build_stare_ql_filename
+
     cfg = {
         "NC_STARE_L2_QL_PATH": str(tmp_path / "ql"),
         "NC_STARE_L2_BASENAME": "stare_",
     }
-    assert Path(build_stare_ql_filename(cfg, DATE, "epsilon")).name == "stare_epsilon_ql_20240720.png"
+    assert (
+        Path(build_stare_ql_filename(cfg, DATE, "epsilon")).name == "stare_epsilon_ql_20240720.png"
+    )
 
 
 def test_wind_smoothing_provenance_flags_and_uncertainty():
@@ -148,18 +164,24 @@ def test_wind_smoothing_provenance_flags_and_uncertainty():
     import pandas as pd
     import xarray as xr
 
-    from hpl2netCDF_client.stare_calc import (
-        build_u_for_epsilon_xr, estimate_u_uncertainty_from_fill_flag,
+    from lidar_wind_toolbox.stare_calc import (
+        build_u_for_epsilon_xr,
+        estimate_u_uncertainty_from_fill_flag,
     )
 
     winds = xr.DataArray(
         np.array([[4.0, np.nan], [np.nan, np.nan], [5.0, 6.0]]),
         dims=("time", "height"),
-        coords={"time": pd.date_range("2024-07-20", periods=3, freq="30min"),
-                "height": [100., 200.]},
+        coords={
+            "time": pd.date_range("2024-07-20", periods=3, freq="30min"),
+            "height": [100.0, 200.0],
+        },
     )
     u, flags = build_u_for_epsilon_xr(
-        winds, time_smooth=3, height_smooth=2, min_u=0.1,
+        winds,
+        time_smooth=3,
+        height_smooth=2,
+        min_u=0.1,
     )
     assert bool(u.notnull().all())
     assert not bool(((flags == 5) & u.notnull()).any())
@@ -173,14 +195,24 @@ def test_wind_no_smoothing_retains_original_flag():
     import numpy as np
     import pandas as pd
     import xarray as xr
-    from hpl2netCDF_client.stare_calc import build_u_for_epsilon_xr
-    winds = xr.DataArray(np.array([[4.0, np.nan], [5.0, np.nan]]),
-       dims=("time", "height"),
-       coords={"time": pd.date_range("2024-07-20", periods=2, freq="30min"),
-               "height": [100., 200.]})
-    _, flags = build_u_for_epsilon_xr(
-        winds, time_smooth=1, height_smooth=1,
-        interp_time=False, interp_height=False, nearest_fallback=False,
+
+    from lidar_wind_toolbox.stare_calc import build_u_for_epsilon_xr
+
+    winds = xr.DataArray(
+        np.array([[4.0, np.nan], [5.0, np.nan]]),
+        dims=("time", "height"),
+        coords={
+            "time": pd.date_range("2024-07-20", periods=2, freq="30min"),
+            "height": [100.0, 200.0],
+        },
     )
-    assert (flags.sel(height=100.) == 0).all().item()
-    assert (flags.sel(height=200.) == 5).all().item()
+    _, flags = build_u_for_epsilon_xr(
+        winds,
+        time_smooth=1,
+        height_smooth=1,
+        interp_time=False,
+        interp_height=False,
+        nearest_fallback=False,
+    )
+    assert (flags.sel(height=100.0) == 0).all().item()
+    assert (flags.sel(height=200.0) == 5).all().item()

@@ -17,6 +17,10 @@ The preferred interface is the typed Python API:
 The legacy config-file-based workflow is still present, but it is considered
 transitional.
 
+The experimental upstream wind and vertical-stare features are available in this
+package. See the [Experimental vertical-stare workflow](docs/experimental-vertical-stare-workflow.md)
+for settings and compatibility details, and [stare processing](docs/stare-processing.md) for usage.
+
 At the moment the public processing entry point is best understood as a
 VAD wind-profile retrieval for WindCube radial data.
 
