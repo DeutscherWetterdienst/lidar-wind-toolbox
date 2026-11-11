@@ -11,7 +11,12 @@ from lidar_wind_toolbox.wind_calc import (
 
 
 def lvl2vad_standard(
-    ds_tmp: xr.Dataset, date_chosen: datetime.datetime, confDict: dict[str, str]
+    ds_tmp: xr.Dataset,
+    date_chosen: datetime.datetime,
+    confDict: dict[str, str],
+    *,
+    start_time: datetime.datetime | None = None,
+    end_time: datetime.datetime | None = None,
 ) -> xr.Dataset:
     # read lidar parameters
     # number of gates
@@ -48,14 +53,20 @@ def lvl2vad_standard(
     else:
         time_delta = 0
 
-    time_vec = np.arange(
-        date_chosen - datetime.timedelta(hours=time_delta),
+    interval_start = start_time or (
+        date_chosen - datetime.timedelta(hours=time_delta)
+    )
+    interval_end = end_time or (
         date_chosen
         + datetime.timedelta(days=1)
         - datetime.timedelta(hours=time_delta)
-        + datetime.timedelta(minutes=int(confDict["AVG_MIN"])),
-        datetime.timedelta(minutes=int(confDict["AVG_MIN"])),
     )
+    interval_length = datetime.timedelta(minutes=int(confDict["AVG_MIN"]))
+    if start_time is not None or end_time is not None:
+        time_vec = np.arange(interval_start, interval_end, interval_length)
+        time_vec = np.append(time_vec, np.datetime64(interval_end))
+    else:
+        time_vec = np.arange(interval_start, interval_end + interval_length, interval_length)
     calc_idx = [
         np.where((ii <= time_ds) * (time_ds < iip1))
         for ii, iip1 in zip(time_vec[0:-1], time_vec[1::])
@@ -118,7 +129,8 @@ def lvl2vad_standard(
     n_good = np.full((len(calc_idx), n_gates), np.nan)
 
     for kk in time_valid:
-        print("processed " + str(np.floor(100 * kk / (len(calc_idx) - 1))) + " %")
+        progress_denominator = max(1, len(calc_idx) - 1)
+        print("processed " + str(np.floor(100 * kk / progress_denominator)) + " %")
         n_rays = int(confDict["NUMBER_OF_DIRECTIONS"])
         indicator, n_rays, azi_mean, azi_edges = find_num_dir(n_rays, calc_idx, azimuth, kk)
         r_phi = 360 / n_rays / 2

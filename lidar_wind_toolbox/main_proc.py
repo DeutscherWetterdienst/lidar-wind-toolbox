@@ -10,7 +10,12 @@ from .retrieval.windcube import lvl2wcdbs
 
 
 def process_dataset(
-    ds_tmp: xr.Dataset, date_chosen: datetime.datetime, confDict: dict[str, str]
+    ds_tmp: xr.Dataset,
+    date_chosen: datetime.datetime,
+    confDict: dict[str, str],
+    *,
+    start_time: datetime.datetime | None = None,
+    end_time: datetime.datetime | None = None,
 ) -> xr.Dataset:
     if confDict["SYSTEM"].lower() == "windcube":
         if "fixed" not in confDict["SCAN_TYPE"].lower():
@@ -20,7 +25,9 @@ def process_dataset(
                 or ("ppi" in confDict["SCAN_TYPE"].lower())
             ):
                 print("processing 'Windcube-dbs/-vad' setting!")
-                ds_lvl2 = lvl2wcdbs(ds_tmp, date_chosen, confDict)
+                ds_lvl2 = lvl2wcdbs(
+                    ds_tmp, date_chosen, confDict, start_time=start_time, end_time=end_time
+                )
             if "rhi" in confDict["SCAN_TYPE"].lower():
                 print("settings for RHI not yet implemented!")
                 # create place holder dataset
@@ -28,7 +35,9 @@ def process_dataset(
         if "fixed" in confDict["SCAN_TYPE"].lower():
             if "vad" in confDict["SCAN_TYPE"].lower():
                 print("processing 'Windcube-vad-fixed' setting!...for old system version!!")
-                ds_lvl2 = lvl2vad_standard(ds_tmp, date_chosen, confDict)
+                ds_lvl2 = lvl2vad_standard(
+                    ds_tmp, date_chosen, confDict, start_time=start_time, end_time=end_time
+                )
             if "stare" in confDict["SCAN_TYPE"].lower():
                 print("processing 'WindCube-stare' setting!")
                 print("coming soon!")
@@ -37,7 +46,9 @@ def process_dataset(
     if confDict["SYSTEM"].lower() == "halo":
         if (len(ds_tmp.range.dims) > 1) & (confDict["SCAN_TYPE"] == "DBS"):
             print("processing 'Streamline-dbs' setting!")
-            ds_lvl2 = lvl2vad_standard(ds_tmp, date_chosen, confDict)
+            ds_lvl2 = lvl2vad_standard(
+                ds_tmp, date_chosen, confDict, start_time=start_time, end_time=end_time
+            )
         if ("vad" in confDict["SCAN_TYPE"].lower()) | ("user" in confDict["SCAN_TYPE"].lower()):
             print("processing 'Streamline-VAD' setting!")
             ds_lvl2 = lvl2vad_standard(ds_tmp, date_chosen, confDict)

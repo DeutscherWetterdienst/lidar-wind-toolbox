@@ -1,6 +1,6 @@
 import json
 from dataclasses import asdict
-from datetime import UTC, time, timedelta
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -38,14 +38,39 @@ def read_windcube_scan_files(
     files_hpl = hpl_files.filelist_to_hpl_files(files, context.instrument.system)
     processing_day = context.window.start.astimezone(UTC).replace(tzinfo=None)
 
+    reader_config = _legacy_reader_config(context=context, reader_settings=reader_settings)
+    if _is_utc_day(context):
+        return hpl_files.combine_lvl1_to_ds(files_hpl, reader_config, processing_day)
     return hpl_files.combine_lvl1_to_ds(
         files_hpl,
-        _legacy_reader_config(
-            context=context,
-            reader_settings=reader_settings,
-        ),
+        reader_config,
         processing_day,
+        start_time=context.window.start.astimezone(UTC).replace(tzinfo=None),
+        end_time=context.window.end.astimezone(UTC).replace(tzinfo=None),
     )
+
+
+def _is_utc_day(context: ProcessingContext) -> bool:
+    start = context.window.start.astimezone(UTC)
+    end = context.window.end.astimezone(UTC)
+    return start.time() == time.min and end == start + timedelta(days=1)
+
+
+def process_windcube_vad_files(
+    files: list[Path],
+    *,
+    context: ProcessingContext,
+    reader_settings: WindCubeLevel1ReaderSettings,
+) -> tuple[xr.Dataset, xr.Dataset]:
+    """Process WindCube VAD data for the interval in ``context.window``."""
+
+    level1 = read_windcube_scan_files(
+        files,
+        context=context,
+        reader_settings=reader_settings,
+    )
+    level2 = retrieve_windcube_vad(level1, context)
+    return level1, level2
 
 
 def process_windcube_vad_files_daily(
@@ -56,13 +81,12 @@ def process_windcube_vad_files_daily(
 ) -> tuple[xr.Dataset, xr.Dataset]:
     """Read WindCube scan files and retrieve the corresponding Level-2 VAD product."""
 
-    level1 = read_windcube_scan_files(
+    _validate_daily_window(context)
+    return process_windcube_vad_files(
         files,
         context=context,
         reader_settings=reader_settings,
     )
-    level2 = retrieve_windcube_vad(level1, context)
-    return level1, level2
 
 
 def retrieve_windcube_vad(
@@ -86,7 +110,6 @@ def retrieve_windcube_vad(
             f"retrieve_windcube_vad requires scan_type='vad', got {context.scan_type!r}"
         )
 
-    _validate_daily_window(context)
     validate_normalized_windcube_level1(dataset)
 
     number_of_gates = int(dataset["radial_wind_speed"].shape[1])
@@ -117,10 +140,18 @@ def retrieve_windcube_vad(
                 retrieval_input["range"].diff(dim_name).mean().astype(np.float32)
             )
 
+    processing_kwargs: dict[str, datetime] = {}
+    if not _is_utc_day(context):
+        processing_kwargs = {
+            "start_time": context.window.start.astimezone(UTC).replace(tzinfo=None),
+            "end_time": context.window.end.astimezone(UTC).replace(tzinfo=None),
+        }
+
     result = process_dataset(
         retrieval_input,
         processing_day,
         legacy_config,
+        **processing_kwargs,
     )
 
     # Remove legacy config-file-derived provenance.

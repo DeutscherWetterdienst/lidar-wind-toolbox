@@ -214,6 +214,8 @@ class hpl_files(object):
         confDict: dict[str, str],
         date_chosen: datetime.datetime,
         time_chosen: datetime.datetime | None = None,
+        start_time: datetime.datetime | None = None,
+        end_time: datetime.datetime | None = None,
     ) -> xr.Dataset:
         from .readers.halo import read_hpl
         from .readers.windcube import read_wc_type, read_wcsradial
@@ -280,13 +282,30 @@ class hpl_files(object):
         # so in case an Attribute error occurs change line 126 to following
         # ds = ds._drop_vars(['delv'])
         ## choose only timestamp within range...
-        if time_chosen is not None:
+        if time_chosen is not None and (start_time is not None or end_time is not None):
+            raise ValueError("time_chosen cannot be combined with start_time or end_time")
+        if (start_time is None) != (end_time is None):
+            raise ValueError("start_time and end_time must be provided together")
+
+        if start_time is not None and end_time is not None:
+            if end_time <= start_time:
+                raise ValueError("end_time must be after start_time")
+            # Interval processing uses half-open UTC bounds.
+            start_dt = (
+                pd.Timestamp(start_time) - pd.Timestamp("1970-01-01")
+            ) / pd.Timedelta("1s")
+            end_dt = (
+                pd.Timestamp(end_time) - pd.Timestamp("1970-01-01")
+            ) / pd.Timedelta("1s")
+            time_selection = (ds.time >= start_dt) & (ds.time < end_dt)
+        elif time_chosen is not None:
             # ...a time window of range AVG_MIN
             start_dt = (
                 pd.to_datetime(time_chosen - datetime.timedelta(minutes=int(confDict["AVG_MIN"])))
                 - pd.Timestamp("1970-01-01")
             ) / pd.Timedelta("1s")
             end_dt = (pd.to_datetime(time_chosen) - pd.Timestamp("1970-01-01")) / pd.Timedelta("1s")
+            time_selection = (ds.time >= start_dt) & (ds.time <= end_dt)
         else:
             # ...a daily range
             start_dt = (
@@ -296,9 +315,10 @@ class hpl_files(object):
                 pd.to_datetime(date_chosen + datetime.timedelta(days=+1))
                 - pd.Timestamp("1970-01-01")
             ) / pd.Timedelta("1s")
+            time_selection = (ds.time >= start_dt) & (ds.time <= end_dt)
         print(start_dt, ds.time[0].data)
         print(end_dt, ds.time[-1].data)
-        ds = ds.isel(time=np.where((ds.time >= start_dt) & (ds.time <= end_dt))[0])
+        ds = ds.isel(time=np.where(time_selection)[0])
         ds.attrs["title"] = confDict["NC_TITLE"]
         ds.attrs["institution"] = confDict["NC_INSTITUTION"]
         ds.attrs["site_location"] = confDict["NC_SITE_LOCATION"]

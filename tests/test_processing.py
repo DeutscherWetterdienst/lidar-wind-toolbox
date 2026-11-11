@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -18,6 +19,19 @@ from lidar_wind_toolbox.processing import (
     read_windcube_scan_files,
     retrieve_windcube_vad,
 )
+
+
+def make_context_for_window(start: datetime, end: datetime) -> ProcessingContext:
+    context = make_context()
+    return ProcessingContext(
+        window=ProcessingWindow(start=start, end=end),
+        retrieval=context.retrieval,
+        instrument=context.instrument,
+        product=context.product,
+        scan_type=context.scan_type,
+        processing_version=context.processing_version,
+        processed_at=context.processed_at,
+    )
 
 
 def make_context(*, blindzone_gates: int = 0) -> ProcessingContext:
@@ -127,6 +141,45 @@ def test_retrieve_windcube_vad_returns_level2_dataset() -> None:
     assert "config" not in result.variables
 
     xr.testing.assert_identical(source, original)
+
+
+def test_retrieve_windcube_vad_accepts_short_window() -> None:
+    source = native_windcube_level1_dataset()
+    context = make_context_for_window(
+        datetime(2026, 1, 1, 0, 0, tzinfo=UTC),
+        datetime(2026, 1, 1, 0, 10, tzinfo=UTC),
+    )
+
+    result = retrieve_windcube_vad(source, context)
+
+    assert result.sizes["time"] == 1
+    assert result.time.data[0] == 1_767_225_715
+
+
+def test_retrieve_windcube_vad_returns_only_requested_intervals() -> None:
+    source = native_windcube_level1_dataset()
+    context = make_context_for_window(
+        datetime(2026, 1, 1, 0, 0, tzinfo=UTC),
+        datetime(2026, 1, 1, 0, 25, tzinfo=UTC),
+    )
+    context = replace(context, retrieval=replace(context.retrieval, averaging_minutes=10))
+
+    result = retrieve_windcube_vad(source, context)
+
+    assert result.sizes["time"] == 3
+    assert result.time_bnds.shape == (3, 2)
+    assert result.time_bnds.data[-1, 1] == 1_767_227_100
+
+
+def test_daily_wrapper_rejects_non_daily_window() -> None:
+    context = make_context_for_window(
+        datetime(2026, 1, 1, 0, 0, tzinfo=UTC),
+        datetime(2026, 1, 1, 0, 10, tzinfo=UTC),
+    )
+    with pytest.raises(ValueError, match="24-hour"):
+        process_windcube_vad_files_daily(
+            [Path("one.nc")], context=context, reader_settings=make_reader_settings()
+        )
 
 
 def test_read_windcube_scan_files_uses_explicit_reader_settings(

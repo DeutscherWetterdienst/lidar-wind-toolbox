@@ -90,6 +90,7 @@ from lidar_wind_toolbox import (
     ProductMetadata,
     WindCubeLevel1ReaderSettings,
     WindRetrievalSettings,
+    process_windcube_vad_files,
     process_windcube_vad_files_daily,
 )
 
@@ -146,6 +147,32 @@ level1, level2 = process_windcube_vad_files_daily(
     reader_settings=reader_settings,
 )
 ```
+
+For a shorter or otherwise non-daily interval, use the same context with any
+timezone-aware `ProcessingWindow` and call `process_windcube_vad_files`:
+
+```python
+context = ProcessingContext(
+    window=ProcessingWindow(
+        start=datetime(2026, 1, 1, 12, 0, tzinfo=UTC),
+        end=datetime(2026, 1, 1, 12, 10, tzinfo=UTC),
+    ),
+    retrieval=context.retrieval,
+    instrument=context.instrument,
+    product=context.product,
+    scan_type="vad",
+    processing_version="0.1.0",
+    processed_at=datetime.now(UTC),
+)
+
+level1, level2 = process_windcube_vad_files(
+    files=[Path("scan.nc")], context=context, reader_settings=reader_settings
+)
+```
+
+Intervals are half-open (`[start, end)`). The existing
+`process_windcube_vad_files_daily` interface remains available for full UTC
+days.
 
 The functions do not read config files and do not write output files unless you
 explicitly call the I/O helpers.
