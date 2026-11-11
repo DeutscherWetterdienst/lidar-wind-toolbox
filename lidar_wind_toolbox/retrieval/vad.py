@@ -50,124 +50,44 @@ def calculate_vad_timestep(
     At least four valid consensus directions are required per gate.
     Inputs are read only; missing retrievals are represented by NaN.
     """
-    VR, SNR, BETA = radial_velocity, snr, backscatter
-    azi, ele, azi_mean = azimuth, elevation, direction_centres
-    r_phi = angular_half_width
-    M, n, B = samples_per_gate, pulses, nyquist_velocity
-    n_gates = radial_velocity.shape[1]
-    uvw = np.full((n_gates, 3), np.nan)
-    uvw_uncertainty = np.full((n_gates, 3), np.nan)
-    speed = np.full((n_gates,), np.nan)
-    speed_uncertainty = np.full((n_gates,), np.nan)
-    direction = np.full((n_gates,), np.nan)
-    direction_uncertainty = np.full((n_gates,), np.nan)
-    r2 = np.full((n_gates,), np.nan)
-    condition_number = np.full((n_gates,), np.nan)
-    n_good = np.full((n_gates,), np.nan)
-
-    VR_CNSmax = np.full((len(azi_mean), n_gates), np.nan)
-    VR_CNSunc = np.full((len(azi_mean), n_gates), np.nan)
-    SIGMA_CNS = np.full((len(azi_mean), n_gates), np.nan)
-    ele_cns = np.full((len(azi_mean),), np.nan)
-
-    for ii, azi_i in enumerate(azi_mean):
-        azi_idx = np.mod(360 - np.mod(np.mod(azi - azi_i, 360) - r_phi, 360), 360) <= 2 * r_phi
-        ele_cns[ii] = np.median(ele[azi_idx])
-        ## calculate consensus average
-        VR_CNSmax[ii, :], idx_tmp, VR_CNSunc[ii, :] = consensus(
-            VR[azi_idx],
-            SNR[azi_idx],
-            BETA[azi_idx],
-            consensus_range,
-            consensus_percentage,
-            snr_threshold,
-            B,
-        )
-        sigma_tmp = calc_sigma_single(in_db(SNR[azi_idx]), M, n, 2 * B, 1.316)
-        # Probably an error in the calculation, but this is what's written in the IDL-code
-        # here: MRSE (mean/root/sum/square)
-        # I woulf recommend changing it to RMSE (root/mean/square)
-        SIGMA_CNS[ii, :] = np.ma.divide(
-            np.sqrt(np.nansum(np.where(idx_tmp, sigma_tmp**2, np.nan), axis=0)),
-            np.sum(idx_tmp, axis=0),
-        )
-    n_good_kk = (~np.isnan(VR_CNSmax)).sum(axis=0)
-    n_good[...] = n_good_kk
-    V_r = np.ma.masked_where(
-        (np.isnan(VR_CNSmax)),
-        VR_CNSmax,
-    ).T[..., None]
-    mask_V_in = (np.isnan(VR_CNSmax)) | (np.tile(n_good_kk, (azi_mean.shape[0], 1)) < 4)
-    V_in = np.ma.masked_where(mask_V_in, VR_CNSmax)
-    A = build_Amatrix(azi_mean, ele_cns)
-    A_r = np.tile(A, (VR_CNSmax.shape[1], 1, 1))
-    A_r_MP = np.tile(np.linalg.pinv(A), (VR_CNSmax.shape[1], 1, 1))
-    A_r_MP_T = np.einsum("...ij->...ji", A_r_MP)
-    SIGMA_r = np.ma.masked_where(np.isnan(VR_CNSmax), SIGMA_CNS).T
-
-    condi = np.isnan(VR_CNSmax)
-    A = np.round(build_Amatrix(azi_mean, ele_cns), 6)
-    U, S, Vh = [], [], []
-    for c_nn in condi.T:
-        u, s, vh = np.linalg.svd(
-            np.ma.masked_where(np.tile(c_nn, (3, 1)).T, A).filled(0), full_matrices=True
-        )
-
-        U.append(u)
-        S.append(np.linalg.pinv(diagsvd(s, u.shape[0], vh.shape[0])))
-        Vh.append(vh)
-    U, S, Vh = np.array(U), np.array(S), np.array(Vh)
-
-    U_T = np.einsum("...ij->...ji", U)
-    Vh_T = np.einsum("...ij->...ji", Vh)
-    K1 = np.nansum((U_T * V_in.T[:, None, :]), axis=2)[..., None]
-    K2 = np.einsum("...ik,...kj->...ij", S, K1)
-
-    V_k = np.einsum("...ik,...kj->...ij", Vh_T, K2)
-    uvw[...] = np.squeeze(V_k)
-    # Require at least four valid consensus directions for wind retrieval.
-    uvw[np.sum(~np.isnan(VR_CNSmax.T), axis=1) < 4, :] = np.squeeze(np.full((3, 1), np.nan))
-
-    uvw_uncertainty[...] = abs(
-        np.einsum(
-            "...ii->...i",
-            np.sqrt(
-                np.einsum("nik,nk,nkl->nil", A_r_MP, SIGMA_r**2, A_r_MP_T).astype(complex)
-            ).real,
-        )
+    averaged = _calculate_direction_consensus(
+        radial_velocity,
+        snr,
+        backscatter,
+        azimuth,
+        elevation,
+        direction_centres,
+        angular_half_width,
+        consensus_range,
+        consensus_percentage,
+        snr_threshold,
+        samples_per_gate,
+        pulses,
+        nyquist_velocity,
     )
-
-    # Require at least four valid consensus directions for wind retrieval.
-    uvw_uncertainty[np.sum(~np.isnan(VR_CNSmax.T), axis=1) < 4, :] = np.squeeze(
-        np.full((3, 1), np.nan)
+    # Inputs are already Doppler-derived velocities. Geometry projects the 3D wind
+    # onto each viewing direction; reconstruction inverts those projections.
+    n_good = (~np.isnan(averaged.radial_velocity)).sum(axis=0).astype(float)
+    insufficient_directions = n_good < 4
+    excluded = np.isnan(averaged.radial_velocity) | np.tile(
+        insufficient_directions, (len(averaged.azimuth), 1)
     )
-
-    V_r_est = A_r @ V_k
-    ss_e = ((V_r - V_r_est) ** 2).sum(axis=1)
-    ss_t = ((V_r - V_r.mean(axis=1)[:, None, :]) ** 2).sum(axis=1)
-    r2[...] = np.squeeze(1 - ss_e / ss_t)
-    r2[np.sum(~np.isnan(VR_CNSmax.T), axis=1) < 4] = np.nan
-
-    mask_A = np.tile(mask_V_in.T[..., None], (1, 1, 3))
-    A_r_T = np.einsum("...ij->...ji", A_r)
-    Spp = np.apply_along_axis(np.diag, 1, 1 / np.sqrt(np.einsum("...ii->...i", A_r_T @ A_r)))
-    Z = np.ma.masked_where(mask_A, A_r @ Spp)
-    condition_number[...] = np.squeeze(np.array([CN_est(X) for X in Z]))
-    condition_number[np.sum(~np.isnan(VR_CNSmax.T), axis=1) < 4] = np.nan
-
-    speed[:], speed_uncertainty[:] = np.vstack(
-        [
-            np.fromiter(uvw_2_spd(val, unc).values(), dtype=float)
-            for val, unc in zip(uvw, uvw_uncertainty)
-        ]
-    ).T
-    direction[:], direction_uncertainty[:] = np.vstack(
-        [
-            np.fromiter(uvw_2_dir(val, unc).values(), dtype=float)
-            for val, unc in zip(uvw, uvw_uncertainty)
-        ]
-    ).T
-
+    geometry = build_Amatrix(averaged.azimuth, averaged.elevation)
+    gate_geometry = np.tile(geometry, (radial_velocity.shape[1], 1, 1))
+    reconstructed = _solve_wind_components(averaged.radial_velocity, geometry, excluded)
+    uvw = np.full((radial_velocity.shape[1], 3), np.nan)
+    uvw[...] = np.squeeze(reconstructed)
+    uvw_uncertainty = _propagate_wind_uncertainty(
+        averaged.radial_velocity, averaged.uncertainty, geometry
+    )
+    r2 = _calculate_reconstruction_r_squared(averaged.radial_velocity, gate_geometry, reconstructed)
+    condition_number = _calculate_geometry_condition_number(gate_geometry, excluded)
+    # Apply the existing four-direction requirement uniformly, retaining valid counts.
+    for values in (uvw, uvw_uncertainty, r2, condition_number):
+        values[insufficient_directions] = np.nan
+    speed, speed_uncertainty, direction, direction_uncertainty = _calculate_speed_and_direction(
+        uvw, uvw_uncertainty
+    )
     return VadTimestepResult(
         uvw=uvw,
         uvw_uncertainty=uvw_uncertainty,
@@ -179,3 +99,202 @@ def calculate_vad_timestep(
         condition_number=condition_number,
         n_good=n_good,
     )
+
+
+@dataclass(frozen=True)
+class _DirectionConsensus:
+    """Velocities/uncertainties (directions, gates), angles (directions,)."""
+
+    radial_velocity: NDArray[np.float64]
+    uncertainty: NDArray[np.float64]
+    azimuth: NDArray[np.float64]
+    elevation: NDArray[np.float64]
+
+
+def _select_rays_in_azimuth_sector(
+    azimuth: NDArray[np.float64],
+    centre: float,
+    half_width: float,
+) -> NDArray[np.bool_]:
+    """Select rays within an inclusive circular sector; all angles are degrees."""
+    # Nested modulo preserves selection across the 0/360-degree boundary.
+    return (
+        np.mod(360 - np.mod(np.mod(azimuth - centre, 360) - half_width, 360), 360) <= 2 * half_width
+    )
+
+
+def _solve_wind_components(
+    radial_velocity: NDArray[np.float64],
+    geometry: NDArray[np.float64],
+    excluded: NDArray[np.bool_],
+) -> NDArray[np.float64]:
+    """Solve radial_velocity = geometry @ wind; return (gates, 3, 1) in m/s.
+
+    Velocity and exclusion masks are (directions, gates), geometry (directions, 3).
+    Missing observations zero their geometry rows; excluded velocities are masked.
+    """
+    masked_velocity = np.ma.masked_where(excluded, radial_velocity)
+    # Retain historical six-decimal rounding only for the reconstruction solve.
+    rounded_geometry = np.round(geometry, 6)
+    left_vectors, inverse_singular_values, right_vectors_transposed = [], [], []
+    for missing in np.isnan(radial_velocity).T:
+        gate_geometry = np.ma.masked_where(np.tile(missing, (3, 1)).T, rounded_geometry).filled(0)
+        u, singular_values, vh = np.linalg.svd(gate_geometry, full_matrices=True)
+        left_vectors.append(u)
+        inverse_singular_values.append(
+            np.linalg.pinv(diagsvd(singular_values, u.shape[0], vh.shape[0]))
+        )
+        right_vectors_transposed.append(vh)
+    left_transposed = np.einsum("...ij->...ji", np.array(left_vectors))
+    right_vectors = np.einsum("...ij->...ji", np.array(right_vectors_transposed))
+    # SVD pseudoinverse: project onto U, scale by inverse singular values, then apply V.
+    projected_velocity = np.nansum(left_transposed * masked_velocity.T[:, None, :], axis=2)[
+        ..., None
+    ]
+    scaled_velocity = np.einsum(
+        "...ik,...kj->...ij", np.array(inverse_singular_values), projected_velocity
+    )
+    return np.einsum("...ik,...kj->...ij", right_vectors, scaled_velocity)
+
+
+def _propagate_wind_uncertainty(
+    radial_velocity: NDArray[np.float64],
+    uncertainty: NDArray[np.float64],
+    geometry: NDArray[np.float64],
+) -> NDArray[np.float64]:
+    """Propagate directional errors (m/s) to component errors (gates, 3).
+
+    Inputs are (directions, gates); geometry is (directions, 3), unrounded.
+    Missing radial velocities mask the corresponding uncertainty entries.
+    """
+    inverse_geometry = np.tile(np.linalg.pinv(geometry), (radial_velocity.shape[1], 1, 1))
+    inverse_transposed = np.einsum("...ij->...ji", inverse_geometry)
+    masked_uncertainty = np.ma.masked_where(np.isnan(radial_velocity), uncertainty).T
+    # Covariance = A+ diag(sigma²) (A+)ᵀ. Preserve the original complex square root conversion.
+    covariance = np.einsum(
+        "nik,nk,nkl->nil", inverse_geometry, masked_uncertainty**2, inverse_transposed
+    )
+    return abs(np.einsum("...ii->...i", np.sqrt(covariance.astype(complex)).real))
+
+
+def _calculate_reconstruction_r_squared(
+    radial_velocity: NDArray[np.float64],
+    gate_geometry: NDArray[np.float64],
+    wind: NDArray[np.float64],
+) -> NDArray[np.float64]:
+    """Return R² per gate, masking NaN observations (directions, gates).
+
+    Geometry is (gates, directions, 3); wind is (gates, 3, 1), in m/s.
+    """
+    observed = np.ma.masked_where(np.isnan(radial_velocity), radial_velocity).T[..., None]
+    predicted = gate_geometry @ wind
+    residual_sum_squares = ((observed - predicted) ** 2).sum(axis=1)
+    total_sum_squares = ((observed - observed.mean(axis=1)[:, None, :]) ** 2).sum(axis=1)
+    result = np.full(radial_velocity.shape[1], np.nan)
+    # Assign into an ndarray to retain historical masked-array conversion behavior.
+    result[...] = np.squeeze(1 - residual_sum_squares / total_sum_squares)
+    return result
+
+
+def _calculate_geometry_condition_number(
+    gate_geometry: NDArray[np.float64],
+    excluded: NDArray[np.bool_],
+) -> NDArray[np.float64]:
+    """Return dimensionless condition numbers for normalized viewing geometry.
+
+    Geometry is (gates, directions, 3); exclusions are (directions, gates).
+    """
+    geometry_mask = np.tile(excluded.T[..., None], (1, 1, 3))
+    transposed = np.einsum("...ij->...ji", gate_geometry)
+    column_scaling = np.apply_along_axis(
+        np.diag, 1, 1 / np.sqrt(np.einsum("...ii->...i", transposed @ gate_geometry))
+    )
+    normalized = np.ma.masked_where(geometry_mask, gate_geometry @ column_scaling)
+    result = np.full(gate_geometry.shape[0], np.nan)
+    result[...] = np.squeeze(np.array([CN_est(matrix) for matrix in normalized]))
+    return result
+
+
+def _calculate_speed_and_direction(
+    wind: NDArray[np.float64],
+    uncertainty: NDArray[np.float64],
+) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+    """Convert (gates, 3) components to speed/error (m/s), direction/error (degrees).
+
+    Direction follows the meteorological wind-from convention; speed is horizontal.
+    """
+    speed, speed_error = np.vstack(
+        [
+            np.fromiter(uvw_2_spd(value, error).values(), dtype=float)
+            for value, error in zip(wind, uncertainty)
+        ]
+    ).T
+    direction, direction_error = np.vstack(
+        [
+            np.fromiter(uvw_2_dir(value, error).values(), dtype=float)
+            for value, error in zip(wind, uncertainty)
+        ]
+    ).T
+    return speed, speed_error, direction, direction_error
+
+
+def _calculate_direction_consensus(
+    radial_velocity: NDArray[np.float64],
+    signal_ratio: NDArray[np.float64],
+    backscatter: NDArray[np.float64],
+    azimuth: NDArray[np.float64],
+    elevation: NDArray[np.float64],
+    direction_centres: NDArray[np.float64],
+    angular_half_width: float,
+    consensus_range: int,
+    consensus_percentage: int,
+    snr_threshold: int,
+    samples_per_gate: float,
+    pulses: float,
+    nyquist_velocity: float,
+) -> _DirectionConsensus:
+    """Average (rays, gates) velocities by direction; angles in degrees, signal linear."""
+    shape = (len(direction_centres), radial_velocity.shape[1])
+    velocities = np.full(shape, np.nan)
+    uncertainties = np.full(shape, np.nan)
+    representative_elevation = np.full(len(direction_centres), np.nan)
+    for index, centre in enumerate(direction_centres):
+        selected = _select_rays_in_azimuth_sector(azimuth, centre, angular_half_width)
+        representative_elevation[index] = np.median(elevation[selected])
+        velocities[index], accepted, spread = consensus(
+            radial_velocity[selected],
+            signal_ratio[selected],
+            backscatter[selected],
+            consensus_range,
+            consensus_percentage,
+            snr_threshold,
+            nyquist_velocity,
+        )
+        uncertainties[index] = _calculate_consensus_uncertainty(
+            signal_ratio[selected], accepted, samples_per_gate, pulses, nyquist_velocity
+        )
+    return _DirectionConsensus(
+        velocities, uncertainties, direction_centres, representative_elevation
+    )
+
+
+def _calculate_consensus_uncertainty(
+    snr: NDArray[np.float64],
+    accepted: NDArray[np.bool_],
+    samples_per_gate: float,
+    pulses: float,
+    nyquist_velocity: float,
+) -> NDArray[np.float64]:
+    """Return instrument-derived errors (gates,) from linear SNR (rays, gates).
+
+    Preserve root-sum-square divided by accepted count, using only consensus members.
+    """
+    single_ray_error = calc_sigma_single(
+        in_db(snr), samples_per_gate, pulses, 2 * nyquist_velocity, 1.316
+    )
+    result = np.full(snr.shape[1], np.nan)
+    result[...] = np.ma.divide(
+        np.sqrt(np.nansum(np.where(accepted, single_ray_error**2, np.nan), axis=0)),
+        np.sum(accepted, axis=0),
+    )
+    return result
