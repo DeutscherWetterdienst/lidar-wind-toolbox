@@ -2,7 +2,7 @@
 
 **Inputs:** (1) a daily **stare L1** NetCDF file containing `dv`, `intensity`, `time`, and `range`; and (2) a daily **wind L2** NetCDF file with horizontal wind speed `wspeed` and compatible time/height coverage. L1 stare observations **alone are not sufficient** for the `epsilon` retrieval.
 
-A supplied real-world example is the AWI Halo Stream Line XR+ stare dataset for **2024-07-20** (instrument S/N 288, 8,873 profiles × 250 range gates). The repository-ready configuration is in [`examples/stare_awi_288.conf`](examples/stare_awi_288.conf), and detailed setup, input checks, outputs, and caveats are documented in **[`docs/stare-processing.md`](docs/stare-processing.md)**.
+A supplied real-world example is the AWI Halo Stream Line XR+ stare dataset for **2024-07-20** (instrument S/N 288, 8,873 profiles × 250 range gates). The repository-ready configuration is in [`examples/stare_awi_288.conf`](../examples/stare_awi_288.conf), and detailed setup, input checks, outputs, and caveats are documented in **[`docs/stare-processing.md`](stare-processing.md)**.
 
 After preparing the two inputs and editing their directory roots:
 
