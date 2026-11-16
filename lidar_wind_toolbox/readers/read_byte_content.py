@@ -1,5 +1,5 @@
 import datetime
-from pathlib import Path
+from io import BytesIO, TextIOWrapper
 
 import numpy as np
 import pandas as pd
@@ -9,12 +9,8 @@ from lidar_wind_toolbox.hpl_files import hpl_files
 from lidar_wind_toolbox.retrieval.uncertainty import calc_sigma_single
 
 
-def read_hpl(filename: Path, confDict: dict[str, str]) -> xr.Dataset:
-    if not filename.exists():
-        print("Oops, file doesn't exist!")
-    else:
-        print("reading file: " + filename.name)
-    with filename.open() as infile:
+def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Dataset:
+    with TextIOWrapper(BytesIO(file_content), encoding="utf-8") as infile:
         header_info = True
         mheader = {}
         for line in infile:
@@ -68,9 +64,9 @@ def read_hpl(filename: Path, confDict: dict[str, str]) -> xr.Dataset:
                 mheader.update(tmp_tmp)
             elif not header_info:
                 if counter_jj == 0:
-                    n_o_rays = (len(filename.open().read().splitlines()) - 17) // (
-                        int(mheader["Number of gates"]) + 1
-                    )
+                    n_o_rays = (
+                        len(TextIOWrapper(file_content, encoding="utf-8").read().splitlines()) - 17
+                    ) // (int(mheader["Number of gates"]) + 1)
                     mbeam = np.recarray(
                         (n_o_rays,),
                         dtype=np.dtype(
