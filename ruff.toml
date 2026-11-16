@@ -14,6 +14,7 @@ exclude = [
     "lidar_wind_toolbox/version.py",
     "lidar_wind_toolbox/signal_calc.py",
     "lidar_wind_toolbox/readers/halo.py",
+    "lidar_wind_toolbox/readers/read_byte_content.py",
 ]
 
 [format]
