@@ -3,7 +3,7 @@ from .exceptions import (
     LidarWindToolboxError,
     UnsupportedScanTypeError,
 )
-from .io import save_figure, write_dataset
+from .io_functions import save_figure, write_dataset
 from .models import (
     InstrumentMetadata,
     ProcessingContext,

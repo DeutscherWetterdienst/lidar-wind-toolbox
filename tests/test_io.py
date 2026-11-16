@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 
-from lidar_wind_toolbox.io import save_figure, write_dataset
+from lidar_wind_toolbox.io_functions import save_figure, write_dataset
 
 
 def test_write_dataset_writes_netcdf(tmp_path: Path) -> None:

@@ -172,21 +172,21 @@ The package also provides dataset-based plotting helpers:
 from datetime import date
 from pathlib import Path
 
-from lidar_wind_toolbox.io import save_figure
+from lidar_wind_toolbox.io_functions import save_figure
 from lidar_wind_toolbox.plotting import (
-    plot_level1_backscatter_quicklook,
-    plot_level2_wind_quicklook,
+  plot_level1_backscatter_quicklook,
+  plot_level2_wind_quicklook,
 )
 
 fig1 = plot_level1_backscatter_quicklook(
-    level1,
-    day=date(2026, 1, 1),
-    system="windcube",
+  level1,
+  day=date(2026, 1, 1),
+  system="windcube",
 )
 
 fig2 = plot_level2_wind_quicklook(
-    level2,
-    day=date(2026, 1, 1),
+  level2,
+  day=date(2026, 1, 1),
 )
 
 save_figure(fig1, Path("backscatter.png"))
@@ -215,7 +215,7 @@ The package provides explicit helpers for writing netCDF datasets and figures:
 ```python
 from pathlib import Path
 
-from lidar_wind_toolbox.io import write_dataset
+from lidar_wind_toolbox.io_functions import write_dataset
 
 write_dataset(level1, Path("out/level1.nc"))
 write_dataset(level2, Path("out/level2.nc"))
