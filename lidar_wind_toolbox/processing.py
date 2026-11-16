@@ -64,6 +64,22 @@ def process_windcube_vad_files_daily(
     level2 = retrieve_windcube_vad(level1, context)
     return level1, level2
 
+def process_windcube_vad_files(
+        files: list[bytes],
+        *,
+        context: ProcessingContext,
+        reader_settings: WindCubeLevel1ReaderSettings,
+) -> tuple[xr.Dataset, xr.Dataset]:
+    """Read WindCube scan files and retrieve the corresponding Level-2 VAD product."""
+
+    level1 = read_windcube_scan_files(
+        files,
+        context=context,
+        reader_settings=reader_settings,
+    )
+    level2 = retrieve_windcube_vad(level1, context)
+    return level1, level2
+
 
 def retrieve_windcube_vad(
     dataset: xr.Dataset,
