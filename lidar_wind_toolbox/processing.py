@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
+from .combining_level_1_files import combine_lvl1_to_ds
 from .exceptions import UnsupportedScanTypeError
 from .hpl_files import hpl_files
 from .main_proc import process_dataset
@@ -48,6 +49,39 @@ def read_windcube_scan_files(
     )
 
 
+def read_windcube_scan_files_bytes(
+    files: list[bytes],
+    *,
+    context: ProcessingContext,
+    reader_settings: WindCubeLevel1ReaderSettings,
+) -> xr.Dataset:
+    """Read and normalize WindCube scan files into the internal retrieval dataset."""
+
+    if context.instrument.system != "windcube":
+        raise UnsupportedScanTypeError(
+            f"read_windcube_scan_files requires a WindCube context, got {context.instrument.system!r}"
+        )
+
+    if context.scan_type != "vad":
+        raise UnsupportedScanTypeError(
+            f"read_windcube_scan_files currently requires scan_type='vad', got {context.scan_type!r}"
+        )
+
+    if not files:
+        raise ValueError("files must not be empty")
+
+    processing_day = context.window.start.astimezone(UTC).replace(tzinfo=None)
+
+    return combine_lvl1_to_ds(
+        files,
+        _legacy_reader_config(
+            context=context,
+            reader_settings=reader_settings,
+        ),
+        processing_day,
+    )
+
+
 def process_windcube_vad_files_daily(
     files: list[Path],
     *,
@@ -64,15 +98,16 @@ def process_windcube_vad_files_daily(
     level2 = retrieve_windcube_vad(level1, context)
     return level1, level2
 
+
 def process_windcube_vad_files(
-        files: list[bytes],
-        *,
-        context: ProcessingContext,
-        reader_settings: WindCubeLevel1ReaderSettings,
+    files: list[bytes],
+    *,
+    context: ProcessingContext,
+    reader_settings: WindCubeLevel1ReaderSettings,
 ) -> tuple[xr.Dataset, xr.Dataset]:
     """Read WindCube scan files and retrieve the corresponding Level-2 VAD product."""
 
-    level1 = read_windcube_scan_files(
+    level1 = read_windcube_scan_files_bytes(
         files,
         context=context,
         reader_settings=reader_settings,

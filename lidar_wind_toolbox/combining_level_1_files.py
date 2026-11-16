@@ -8,7 +8,7 @@ import pandas as pd
 import xarray as xr
 
 from lidar_wind_toolbox.readers.read_byte_content import read_byte_content
-from lidar_wind_toolbox.readers.windcube_bytes import read_wcsradial_bytes, read_wc_type_bytes
+from lidar_wind_toolbox.readers.windcube_bytes import read_wc_type_bytes, read_wcsradial_bytes
 
 
 def combine_lvl1_to_ds(
@@ -17,7 +17,6 @@ def combine_lvl1_to_ds(
     date_chosen: datetime.datetime,
     time_chosen: datetime.datetime | None = None,
 ) -> xr.Dataset:
-    from .readers.windcube import read_wc_type
 
     if confDict["SYSTEM"] == "halo":
         ds = xr.concat(
@@ -58,7 +57,11 @@ def combine_lvl1_to_ds(
         else:
             print("processing 'WindCube-dbs/-vad/-pp' setting!")
             ds = xr.concat(
-                (read_wc_type_bytes(iit) for iit in file_contents if read_wc_type_bytes(iit) is not False),
+                (
+                    read_wc_type_bytes(iit)
+                    for iit in file_contents
+                    if read_wc_type_bytes(iit) is not False
+                ),
                 dim="time",
                 data_vars="minimal",
                 compat="override",
@@ -79,6 +82,7 @@ def combine_lvl1_to_ds(
     # so in case an Attribute error occurs change line 126 to following
     # ds = ds._drop_vars(['delv'])
     ## choose only timestamp within range...
+    # TODO IDA-2536: Adjust time range here
     if time_chosen is not None:
         # ...a time window of range AVG_MIN
         start_dt = (
@@ -94,6 +98,7 @@ def combine_lvl1_to_ds(
         end_dt = (
             pd.to_datetime(date_chosen + datetime.timedelta(days=+1)) - pd.Timestamp("1970-01-01")
         ) / pd.Timedelta("1s")
+
     print(start_dt, ds.time[0].data)
     print(end_dt, ds.time[-1].data)
     ds = ds.isel(time=np.where((ds.time >= start_dt) & (ds.time <= end_dt))[0])
