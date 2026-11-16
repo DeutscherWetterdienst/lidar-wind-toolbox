@@ -1,3 +1,5 @@
+from typing import Literal
+
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -6,7 +8,7 @@ from lidar_wind_toolbox.hpl_files import hpl_files
 from lidar_wind_toolbox.retrieval.uncertainty import calc_sigma_single
 
 
-def read_wc_type_bytes(file_content: bytes) -> xr.Dataset | False:
+def read_wc_type_bytes(file_content: bytes) -> xr.Dataset | Literal[False]:
     try:
         ds_root = xr.open_dataset(file_content)
     except OSError:
@@ -26,7 +28,9 @@ def read_wc_type_bytes(file_content: bytes) -> xr.Dataset | False:
     return ds_ind
 
 
-def read_wcsradial_bytes(file_content: bytes, confDict: dict[str, str]) -> xr.Dataset | False:
+def read_wcsradial_bytes(
+    file_content: bytes, confDict: dict[str, str]
+) -> xr.Dataset | Literal[False]:
     ## the windcube netCDF l1-files are in cf-radial format
     # this requires a workaround to open to access the radial data,
     # when relying on xarray package alone

@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import datetime
+from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
 import xarray as xr
+from pandas import Timedelta
 
 from lidar_wind_toolbox.readers.read_byte_content import read_byte_content
 from lidar_wind_toolbox.readers.windcube_bytes import read_wc_type_bytes, read_wcsradial_bytes
@@ -14,8 +15,10 @@ from lidar_wind_toolbox.readers.windcube_bytes import read_wc_type_bytes, read_w
 def combine_lvl1_to_ds(
     file_contents: list[bytes],
     confDict: dict[str, str],
-    date_chosen: datetime.datetime,
-    time_chosen: datetime.datetime | None = None,
+    data_from: datetime,
+    data_to: datetime,
+    date_chosen: datetime,
+    time_chosen: datetime | None = None,
 ) -> xr.Dataset:
 
     if confDict["SYSTEM"] == "halo":
@@ -85,19 +88,14 @@ def combine_lvl1_to_ds(
     # TODO IDA-2536: Adjust time range here
     if time_chosen is not None:
         # ...a time window of range AVG_MIN
-        start_dt = (
-            pd.to_datetime(time_chosen - datetime.timedelta(minutes=int(confDict["AVG_MIN"])))
-            - pd.Timestamp("1970-01-01")
-        ) / pd.Timedelta("1s")
-        end_dt = (pd.to_datetime(time_chosen) - pd.Timestamp("1970-01-01")) / pd.Timedelta("1s")
+        start_dt = convert_to_instant(data_from - timedelta(minutes=int(confDict["AVG_MIN"])))
+        end_dt = convert_to_instant(data_to)
     else:
         # ...a daily range
-        start_dt = (pd.to_datetime(date_chosen.date()) - pd.Timestamp("1970-01-01")) / pd.Timedelta(
-            "1s"
+        start_dt = convert_to_instant(
+            date_chosen.replace(hour=0, minute=0, second=0, microsecond=0)
         )
-        end_dt = (
-            pd.to_datetime(date_chosen + datetime.timedelta(days=+1)) - pd.Timestamp("1970-01-01")
-        ) / pd.Timedelta("1s")
+        end_dt = convert_to_instant(date_chosen + timedelta(days=+1))
 
     print(start_dt, ds.time[0].data)
     print(end_dt, ds.time[-1].data)
@@ -118,7 +116,7 @@ def combine_lvl1_to_ds(
     else:
         ds.attrs["instrument_id"] = "N/A"
     ds.attrs["conventions"] = confDict["NC_CONVENTIONS"]
-    ds.attrs["processing_date"] = str(pd.to_datetime(datetime.datetime.now())) + " UTC"
+    ds.attrs["processing_date"] = str(pd.to_datetime(datetime.now())) + " UTC"
     ds.attrs["instrument_contact"] = confDict["NC_INSTRUMENT_CONTACT"]
     ds.attrs["data_policy"] = confDict["NC_DATA_POLICY"]
     # attributes for operational use of netCDFs, see E-Profile wind profiler netCDF version 1.7
@@ -143,7 +141,7 @@ def combine_lvl1_to_ds(
         + " version "
         + confDict["VERSION"]
         + " on "
-        + str(pd.to_datetime(datetime.datetime.now()))
+        + str(pd.to_datetime(datetime.now()))
         + " UTC"
     )
     ds.attrs["comments"] = confDict["NC_COMMENTS"]
@@ -171,3 +169,7 @@ def combine_lvl1_to_ds(
     )[abs(np.sign(time_delta))]
 
     return ds
+
+
+def convert_to_instant(data_to: datetime) -> Timedelta:
+    return (pd.to_datetime(data_to) - pd.Timestamp("1970-01-01")) / pd.Timedelta("1s")

@@ -1,6 +1,6 @@
 import json
 from dataclasses import asdict
-from datetime import UTC, time, timedelta
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -54,6 +54,8 @@ def read_windcube_scan_files_bytes(
     *,
     context: ProcessingContext,
     reader_settings: WindCubeLevel1ReaderSettings,
+    data_from: datetime,
+    data_to: datetime,
 ) -> xr.Dataset:
     """Read and normalize WindCube scan files into the internal retrieval dataset."""
 
@@ -79,6 +81,8 @@ def read_windcube_scan_files_bytes(
             reader_settings=reader_settings,
         ),
         processing_day,
+        data_from,
+        data_to,
     )
 
 
@@ -104,6 +108,8 @@ def process_windcube_vad_files(
     *,
     context: ProcessingContext,
     reader_settings: WindCubeLevel1ReaderSettings,
+    data_from: datetime,
+    data_to: datetime,
 ) -> tuple[xr.Dataset, xr.Dataset]:
     """Read WindCube scan files and retrieve the corresponding Level-2 VAD product."""
 
@@ -111,6 +117,8 @@ def process_windcube_vad_files(
         files,
         context=context,
         reader_settings=reader_settings,
+        data_from=data_from,
+        data_to=data_to,
     )
     level2 = retrieve_windcube_vad(level1, context)
     return level1, level2
