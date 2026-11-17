@@ -120,13 +120,12 @@ def process_windcube_vad_files(
         data_from=data_from,
         data_to=data_to,
     )
-    level2 = retrieve_windcube_vad(level1, context)
+    level2 = retrieve_windcube_vad(level1, context, True)
     return level1, level2
 
 
 def retrieve_windcube_vad(
-    dataset: xr.Dataset,
-    context: ProcessingContext,
+    dataset: xr.Dataset, context: ProcessingContext, skip_window_validation: bool = False
 ) -> xr.Dataset:
     """Retrieve a daily Level-2 WindCube VAD product.
 
@@ -145,7 +144,8 @@ def retrieve_windcube_vad(
             f"retrieve_windcube_vad requires scan_type='vad', got {context.scan_type!r}"
         )
 
-    _validate_daily_window(context)
+    if not skip_window_validation:
+        _validate_daily_window(context)
     validate_normalized_windcube_level1(dataset)
 
     number_of_gates = int(dataset["radial_wind_speed"].shape[1])
