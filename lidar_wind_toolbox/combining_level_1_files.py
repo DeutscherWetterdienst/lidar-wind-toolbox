@@ -172,4 +172,7 @@ def combine_lvl1_to_ds(
 
 
 def convert_to_instant(data_to: datetime) -> Timedelta:
-    return (pd.to_datetime(data_to) - pd.Timestamp("1970-01-01")) / pd.Timedelta("1s")
+    if data_to.tzinfo is None:
+        return (pd.to_datetime(data_to) - pd.Timestamp("1970-01-01")) / pd.Timedelta("1s")
+    else:
+        return (pd.to_datetime(data_to) - pd.Timestamp("1970-01-01", tz="UTC")) / pd.Timedelta("1s")
