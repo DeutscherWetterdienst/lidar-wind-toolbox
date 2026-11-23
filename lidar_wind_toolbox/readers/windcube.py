@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from lidar_wind_toolbox.domain.constants import SPEED_OF_LIGHT
 from lidar_wind_toolbox.hpl_files import hpl_files
 from lidar_wind_toolbox.retrieval.uncertainty import calc_sigma_single
 

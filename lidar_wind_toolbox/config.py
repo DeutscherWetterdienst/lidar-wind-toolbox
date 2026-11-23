@@ -28,3 +28,4 @@ class config(object):
                     for line in reader
                     if not line.startswith("#") and line != "\n"
                 }
+        return {}
