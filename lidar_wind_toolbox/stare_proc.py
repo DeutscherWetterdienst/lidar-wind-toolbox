@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from .stare_calc import (
+from lidar_wind_toolbox.stare_calc import (
     _ensure_height_dim,
     _replace_time_bins_with_midpoints,
     add_epsilon_uncertainty,

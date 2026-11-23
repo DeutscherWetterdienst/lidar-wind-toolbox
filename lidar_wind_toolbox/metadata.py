@@ -2,7 +2,7 @@ from datetime import timezone
 
 import xarray as xr
 
-from .models import ProcessingContext
+from lidar_wind_toolbox.models import ProcessingContext
 
 
 def add_global_metadata(dataset: xr.Dataset, context: ProcessingContext) -> xr.Dataset:

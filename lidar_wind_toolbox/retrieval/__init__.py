@@ -1,6 +1,6 @@
 """Wind retrieval algorithms and the NumPy calculation domain."""
 
-from .numpy_core import (
+from lidar_wind_toolbox.retrieval.numpy_core import (
     LidarScan,
     RetrievalMethod,
     RetrievalParameters,

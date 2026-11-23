@@ -4,8 +4,12 @@ import datetime
 
 import xarray as xr
 
-from .numpy_core import RetrievalMethod, RetrievalParameters, retrieve_array
-from .xarray_adapter import halo_scan, result_to_xarray
+from lidar_wind_toolbox.retrieval.numpy_core import (
+    RetrievalMethod,
+    RetrievalParameters,
+    retrieve_array,
+)
+from lidar_wind_toolbox.retrieval.xarray_adapter import halo_scan, result_to_xarray
 
 
 def lvl2vad_standard(

@@ -5,10 +5,10 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from .retrieval import experimental
-from .retrieval.standard import lvl2vad_standard
-from .retrieval.windcube import lvl2wcdbs
-from .stare_proc import build_wind_l2_filename, process_stare_l2_from_ds
+from lidar_wind_toolbox.retrieval import experimental
+from lidar_wind_toolbox.retrieval.standard import lvl2vad_standard
+from lidar_wind_toolbox.retrieval.windcube import lvl2wcdbs
+from lidar_wind_toolbox.stare_proc import build_wind_l2_filename, process_stare_l2_from_ds
 
 
 def process_dataset(

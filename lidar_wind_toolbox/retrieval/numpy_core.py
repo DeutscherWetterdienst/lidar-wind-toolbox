@@ -12,10 +12,10 @@ from enum import StrEnum
 
 import numpy as np
 
-from ..signal_calc import CN_est
-from ..wind_calc import find_num_dir
-from .consensus import consensus
-from .geometry import build_Amatrix, uvw_2_dir, uvw_2_spd
+from lidar_wind_toolbox.signal_calc import CN_est
+from lidar_wind_toolbox.wind_calc import find_num_dir
+from lidar_wind_toolbox.retrieval.consensus import consensus
+from lidar_wind_toolbox.retrieval.geometry import build_Amatrix, uvw_2_dir, uvw_2_spd
 
 
 class RetrievalMethod(StrEnum):

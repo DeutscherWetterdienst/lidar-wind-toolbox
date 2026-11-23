@@ -1,10 +1,10 @@
-from .exceptions import (
+from lidar_wind_toolbox.exceptions import (
     InputDatasetError,
     LidarWindToolboxError,
     UnsupportedScanTypeError,
 )
-from .io_functions import save_figure, write_dataset
-from .models import (
+from lidar_wind_toolbox.io_functions import save_figure, write_dataset
+from lidar_wind_toolbox.models import (
     InstrumentMetadata,
     ProcessingContext,
     ProcessingWindow,
@@ -12,12 +12,12 @@ from .models import (
     WindCubeLevel1ReaderSettings,
     WindRetrievalSettings,
 )
-from .processing import (
+from lidar_wind_toolbox.processing import (
     process_windcube_vad_files_daily,
     read_windcube_scan_files,
     retrieve_windcube_vad,
 )
-from .time_windows import build_processing_intervals, normalize_utc
+from lidar_wind_toolbox.time_windows import build_processing_intervals, normalize_utc
 
 __all__ = [
     "LidarWindToolboxError",

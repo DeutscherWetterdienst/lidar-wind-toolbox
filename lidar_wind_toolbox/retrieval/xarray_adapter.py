@@ -7,7 +7,11 @@ from datetime import datetime
 import numpy as np
 import xarray as xr
 
-from .numpy_core import LidarScan, RetrievalParameters, WindRetrievalResult
+from lidar_wind_toolbox.retrieval.numpy_core import (
+    LidarScan,
+    RetrievalParameters,
+    WindRetrievalResult,
+)
 
 
 def halo_scan(dataset: xr.Dataset) -> LidarScan:

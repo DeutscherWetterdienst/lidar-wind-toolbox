@@ -12,7 +12,7 @@ import textwrap
 
 from pandas.plotting import register_matplotlib_converters
 
-from .hpl2netCDF_client import hpl2netCDFClient
+from lidar_wind_toolbox.hpl2netCDF_client import hpl2netCDFClient
 
 register_matplotlib_converters()
 
