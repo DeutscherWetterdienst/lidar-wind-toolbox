@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from lidar_wind_toolbox.domain.constants import SPEED_OF_LIGHT
 from lidar_wind_toolbox.hpl_files import hpl_files
 from lidar_wind_toolbox.retrieval.uncertainty import calc_sigma_single
 
@@ -145,9 +146,9 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
 
     # calculate range in meters from range gate number, gate length
     range_mid = hpl_files.range_calc(mdata["range gate"][0, :], confDict)
-    dr = (np.float32(confDict["PULS_DURATION"]) * 299792458 / 4).astype("f4")
+    dr = (np.float32(confDict["PULS_DURATION"]) * SPEED_OF_LIGHT / 4).astype("f4")
     range_bnds = np.array([range_mid - dr, range_mid + dr]).T
-    tgint = (2 * np.array(confDict["RANGE_GATE_LENGTH"], dtype="f4") / 299792458).astype("f4")
+    tgint = (2 * np.array(confDict["RANGE_GATE_LENGTH"], dtype="f4") / SPEED_OF_LIGHT).astype("f4")
 
     SNR_tmp = np.copy(mdata["snrp1"]) - 1
     SNR_tmp[abs(SNR_tmp) <= np.finfo(np.float32).eps] = np.finfo(np.float32).eps

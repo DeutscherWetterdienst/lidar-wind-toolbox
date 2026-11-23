@@ -33,6 +33,8 @@ from lidar_wind_toolbox.wind_calc import (
 from lidar_wind_toolbox.retrieval.uncertainty import calc_sigma_single
 from lidar_wind_toolbox.retrieval.consensus import consensus
 from lidar_wind_toolbox.retrieval.geometry import build_Amatrix, uvw_2_spd, uvw_2_dir
+from lidar_wind_toolbox.domain.constants import SPEED_OF_LIGHT
+
 
 ColorKey = Literal["red", "green", "blue", "alpha"]
 
@@ -1277,7 +1279,7 @@ class hpl2netCDFClient(object):
                 ),
                 "frequency": (
                     [],
-                    np.float32(299792458 / float(confDict["SYSTEM_WAVELENGTH"])),
+                    np.float32(SPEED_OF_LIGHT / float(confDict["SYSTEM_WAVELENGTH"])),
                     {
                         "units": "Hz",
                         "comments": "lidar operating frequency",

@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 import numpy as np
 import xarray as xr
 
+from lidar_wind_toolbox.domain.constants import SPEED_OF_LIGHT
 from lidar_wind_toolbox.domain.models import (
     LidarScan,
-    RetrievalParameters,
     WindRetrievalResult,
 )
 
@@ -150,11 +148,10 @@ def result_to_xarray(
     if altitude is not None:
         dataset["zsl"] = xr.DataArray(np.float32(altitude))
     if wavelength is not None:
-        dataset["frequency"] = xr.DataArray(np.float32(299792458 / wavelength))
+        dataset["frequency"] = xr.DataArray(np.float32(SPEED_OF_LIGHT / wavelength))
     dataset["hor_width"] = xr.DataArray(
         result.horizontal_width[n:].astype(np.float32), dims=("height",)
     )
     dataset["vert_res"] = xr.DataArray(np.float32(np.nanmean(np.diff(result.height))))
     dataset.attrs["File_Configuration"] = dataset["config"].item()
     return dataset
-

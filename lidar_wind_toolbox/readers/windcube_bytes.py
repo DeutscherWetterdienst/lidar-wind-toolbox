@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from lidar_wind_toolbox.domain.constants import SPEED_OF_LIGHT
 from lidar_wind_toolbox.hpl_files import hpl_files
 from lidar_wind_toolbox.retrieval.uncertainty import calc_sigma_single
 
@@ -62,9 +63,9 @@ def read_wcsradial_bytes(
         time_reference = ds_tmp.time_reference.data
 
     range_mid = hpl_files.range_calc(ds_tmp.gate_index.data.astype(int), confDict)
-    dr = (np.float32(confDict["PULS_DURATION"]) * 299792458 / 4).astype("f4")
+    dr = (np.float32(confDict["PULS_DURATION"]) * SPEED_OF_LIGHT / 4).astype("f4")
     range_bnds = np.array([range_mid - dr, range_mid + dr]).T
-    tgint = 2 * (range_bnds[0, 1] - range_bnds[0, 0]) / 299792458
+    tgint = 2 * (range_bnds[0, 1] - range_bnds[0, 0]) / SPEED_OF_LIGHT
 
     zenith = np.array([90 - ds_root.sweep_fixed_angle.data[0]] * ds_tmp.time.size)
 
