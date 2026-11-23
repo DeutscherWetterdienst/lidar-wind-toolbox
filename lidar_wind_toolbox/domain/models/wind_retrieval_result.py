@@ -63,9 +63,7 @@ class WindRetrievalResult:
 
         valid = np.isfinite(beams)
         self.radial_velocity_count[time_index] = valid.sum(axis=0)
-        self.binary_direction[time_index] = valid.T.dot(
-            1 << np.arange(beams.shape[0] - 1, -1, -1)
-        )
+        self.binary_direction[time_index] = valid.T.dot(1 << np.arange(beams.shape[0] - 1, -1, -1))
         self.snr[time_index] = np.nanmedian(beam_snr, axis=0)
         self.snr_min[time_index] = np.nanmin(beam_snr, axis=0)
         self.snr_max[time_index] = np.nanmax(beam_snr, axis=0)

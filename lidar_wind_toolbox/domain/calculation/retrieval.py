@@ -52,7 +52,10 @@ def _consensus_beams(
     )
     if n_horizontal < 3 or not np.any(horizontal):
         return tuple(np.empty((0, scan.radial_velocity.shape[1])) for _ in range(3)) + (
-            np.empty(0), np.empty(0), np.empty(0), np.empty(0)
+            np.empty(0),
+            np.empty(0),
+            np.empty(0),
+            np.empty(0),
         )  # type: ignore[return-value]
 
     horizontal_indices = np.flatnonzero(horizontal)
@@ -60,7 +63,10 @@ def _consensus_beams(
     ok, n_horizontal, _, _ = find_num_dir(n_horizontal, local_groups, azimuth[horizontal], 0)
     if not ok:
         return tuple(np.empty((0, scan.radial_velocity.shape[1])) for _ in range(3)) + (
-            np.empty(0), np.empty(0), np.empty(0), np.empty(0)
+            np.empty(0),
+            np.empty(0),
+            np.empty(0),
+            np.empty(0),
         )  # type: ignore[return-value]
     sector_width = 360 / n_horizontal
     phase = float(np.nanmedian(np.mod(azimuth[horizontal], sector_width)))
@@ -198,9 +204,7 @@ def retrieve_array(
             total = np.sum((values - np.mean(values)) ** 2)
             current_r2 = np.nan if total == 0 else 1 - residual / total
             current_cn = CN_est(np.ma.masked_array(matrix, mask=False))
-            current_speed, current_speed_uncertainty = tuple(
-                uvw_2_spd(estimate, unc).values()
-            )
+            current_speed, current_speed_uncertainty = tuple(uvw_2_spd(estimate, unc).values())
             current_direction, current_direction_uncertainty = tuple(
                 uvw_2_dir(estimate, unc).values()
             )

@@ -38,9 +38,7 @@ def test_lidar_scan_validates_array_contract() -> None:
 
 
 def test_time_grid_uses_array_bin_assignments() -> None:
-    values = np.array(
-        ["2024-01-01T00:01:00", "2024-01-01T00:31:00"], dtype="datetime64[s]"
-    )
+    values = np.array(["2024-01-01T00:01:00", "2024-01-01T00:31:00"], dtype="datetime64[s]")
     grid = build_time_grid(values, datetime(2024, 1, 1, tzinfo=timezone.utc), 30)
     assert grid.sample_bin[:2].tolist() == [0, 1]
     assert grid.bounds.shape == (48, 2)

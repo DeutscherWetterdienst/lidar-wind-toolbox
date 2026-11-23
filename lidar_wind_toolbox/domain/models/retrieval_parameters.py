@@ -42,7 +42,6 @@ class RetrievalParameters:
                 return int(value)
             raise ValueError(f"expected a default value or value for int ${name}")
 
-
         excluded = tuple(float(v) for v in config.get("EX_AZI", "").split(",") if v.strip())
         return cls(
             number_of_directions=i("NUMBER_OF_DIRECTIONS", 4),
