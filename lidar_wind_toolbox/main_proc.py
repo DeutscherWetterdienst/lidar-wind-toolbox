@@ -14,6 +14,12 @@ from lidar_wind_toolbox.stare_proc import build_wind_l2_filename, process_stare_
 def process_dataset(
     ds_tmp: xr.Dataset, date_chosen: datetime.datetime, confDict: dict[str, str]
 ) -> xr.Dataset:
+    ds_lvl2 = calculate_wind(confDict, date_chosen, ds_tmp)
+    add_attributes_from_confict_dict(confDict, ds_lvl2)
+    return ds_lvl2
+
+
+def calculate_wind(confDict, date_chosen, ds_tmp) -> Any:
     experimental_wind = confDict.get("EXPERIMENTAL_WIND_RETRIEVAL", "0") == "1"
     retrieve_standard = experimental.lvl2vad_standard if experimental_wind else lvl2vad_standard
     retrieve_windcube = experimental.lvl2wcdbs if experimental_wind else lvl2wcdbs
@@ -49,8 +55,6 @@ def process_dataset(
             print("processing 'Streamline-Stare' setting!")
             with xr.open_dataset(build_wind_l2_filename(confDict, date_chosen)) as ds_wind:
                 ds_lvl2 = process_stare_l2_from_ds(ds_tmp, ds_wind, date_chosen, confDict)
-
-    add_attributes_from_confict_dict(confDict, ds_lvl2)
     return ds_lvl2
 
 
