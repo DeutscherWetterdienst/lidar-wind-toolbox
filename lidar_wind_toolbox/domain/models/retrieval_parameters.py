@@ -28,11 +28,20 @@ class RetrievalParameters:
     def from_legacy_config(cls, config: dict[str, str], gates: int) -> "RetrievalParameters":
         def f(name: str, default: float | None = None) -> float:
             value = config.get(name)
-            return float(default if value is None else value)
+            if value is None and default is not None:
+                return default
+            if value is not None:
+                return float(value)
+            raise ValueError(f"expected a default value or value for float ${name}")
 
         def i(name: str, default: int | None = None) -> int:
             value = config.get(name)
-            return int(default if value is None else value)
+            if value is None and default is not None:
+                return default
+            if value is not None:
+                return int(value)
+            raise ValueError(f"expected a default value or value for int ${name}")
+
 
         excluded = tuple(float(v) for v in config.get("EX_AZI", "").split(",") if v.strip())
         return cls(
