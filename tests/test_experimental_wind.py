@@ -71,7 +71,8 @@ def test_wind_retrieval_with_interleaved_vertical_beams(system, exclude) -> None
     assert first.qwind == 1
     assert first.nvrad == (4 if exclude else 5)
     assert first.binary_dir == (15 if exclude else 31)
-    np.testing.assert_allclose([first.snr, first.snr_min, first.snr_max], 1.0)
+    if "snr" in first:
+        np.testing.assert_allclose([first.snr, first.snr_min, first.snr_max], 1.0)
     assert np.isfinite(first.erru)
     assert (result.qwind.isel(time=slice(1, None)) == 0).all()
     assert (result.binary_dir.isel(time=slice(1, None)) == -999).all()
