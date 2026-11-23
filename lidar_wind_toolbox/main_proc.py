@@ -17,39 +17,39 @@ def process_dataset(
     experimental_wind = confDict.get("EXPERIMENTAL_WIND_RETRIEVAL", "0") == "1"
     retrieve_standard = experimental.lvl2vad_standard if experimental_wind else lvl2vad_standard
     retrieve_windcube = experimental.lvl2wcdbs if experimental_wind else lvl2wcdbs
-    if confDict["SYSTEM"].lower() == "windcube":
-        if "fixed" not in confDict["SCAN_TYPE"].lower():
-            if (
-                ("dbs" in confDict["SCAN_TYPE"].lower())
-                or ("vad" in confDict["SCAN_TYPE"].lower())
-                or ("ppi" in confDict["SCAN_TYPE"].lower())
-            ):
+    system = confDict["SYSTEM"].lower()
+    scan_type = confDict["SCAN_TYPE"].lower()
+
+    if system == "windcube":
+        if "fixed" not in scan_type:
+            if (("dbs" in scan_type) or ("vad" in scan_type) or ("ppi" in scan_type)):
                 print("processing 'Windcube-dbs/-vad' setting!")
                 ds_lvl2 = retrieve_windcube(ds_tmp, date_chosen, confDict)
-            if "rhi" in confDict["SCAN_TYPE"].lower():
+            if "rhi" in scan_type:
                 print("settings for RHI not yet implemented!")
                 # create place holder dataset
                 ds_lvl2 = xr.Dataset()
-        if "fixed" in confDict["SCAN_TYPE"].lower():
-            if "vad" in confDict["SCAN_TYPE"].lower():
+        if "fixed" in scan_type:
+            if "vad" in scan_type:
                 print("processing 'Windcube-vad-fixed' setting!...for old system version!!")
                 ds_lvl2 = retrieve_standard(ds_tmp, date_chosen, confDict)
-            if "stare" in confDict["SCAN_TYPE"].lower():
+            if "stare" in scan_type:
                 print("processing 'WindCube-stare' setting!")
                 print("coming soon!")
                 # create place holder dataset
                 ds_lvl2 = xr.Dataset()
-    if confDict["SYSTEM"].lower() == "halo":
-        if (len(ds_tmp.range.dims) > 1) & (confDict["SCAN_TYPE"] == "DBS"):
+    if system == "halo":
+        if (len(ds_tmp.range.dims) > 1) & (scan_type == "dbs"):
             print("processing 'Streamline-dbs' setting!")
             ds_lvl2 = retrieve_standard(ds_tmp, date_chosen, confDict)
-        if ("vad" in confDict["SCAN_TYPE"].lower()) | ("user" in confDict["SCAN_TYPE"].lower()):
+        if ("vad" in scan_type) | ("user" in scan_type):
             print("processing 'Streamline-VAD' setting!")
             ds_lvl2 = retrieve_standard(ds_tmp, date_chosen, confDict)
-        if "stare" in confDict["SCAN_TYPE"].lower():
+        if "stare" in scan_type:
             print("processing 'Streamline-Stare' setting!")
             with xr.open_dataset(build_wind_l2_filename(confDict, date_chosen)) as ds_wind:
                 ds_lvl2 = process_stare_l2_from_ds(ds_tmp, ds_wind, date_chosen, confDict)
+
     ds_lvl2.attrs["title"] = confDict["NC_TITLE"]
     ds_lvl2.attrs["institution"] = confDict["NC_INSTITUTION"]
     ds_lvl2.attrs["site_location"] = confDict["NC_SITE_LOCATION"]
