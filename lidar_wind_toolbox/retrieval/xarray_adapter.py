@@ -7,7 +7,7 @@ from datetime import datetime
 import numpy as np
 import xarray as xr
 
-from lidar_wind_toolbox.retrieval.numpy_core import (
+from lidar_wind_toolbox.domain.models import (
     LidarScan,
     RetrievalParameters,
     WindRetrievalResult,

@@ -3,11 +3,11 @@ from datetime import datetime, timezone
 import numpy as np
 import pytest
 
-from lidar_wind_toolbox.retrieval.numpy_core import (
+from lidar_wind_toolbox.domain.calculation import build_time_grid
+from lidar_wind_toolbox.domain.models import (
     LidarScan,
     RetrievalParameters,
     WindRetrievalResult,
-    build_time_grid,
 )
 
 

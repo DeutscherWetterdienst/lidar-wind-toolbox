@@ -10,11 +10,8 @@ import datetime
 
 import xarray as xr
 
-from lidar_wind_toolbox.retrieval.numpy_core import (
-    RetrievalMethod,
-    RetrievalParameters,
-    retrieve_array,
-)
+from lidar_wind_toolbox.domain.calculation import retrieve_array
+from lidar_wind_toolbox.domain.models import RetrievalMethod, RetrievalParameters
 from lidar_wind_toolbox.retrieval.xarray_adapter import (
     halo_scan,
     result_to_xarray,
