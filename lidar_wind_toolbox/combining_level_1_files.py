@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 from datetime import datetime, timedelta
 
@@ -86,7 +85,7 @@ def combine_lvl1_to_ds(
     # ds = ds._drop_vars(['delv'])
     ## choose only timestamp within range...
     # TODO IDA-2536: Adjust time range here
-    if time_chosen is not None:
+    if time_chosen is not None or (data_from is not None and data_to is not None):
         # ...a time window of range AVG_MIN
         start_dt = convert_to_instant(data_from - timedelta(minutes=int(confDict["AVG_MIN"])))
         end_dt = convert_to_instant(data_to)
@@ -161,11 +160,11 @@ def combine_lvl1_to_ds(
 
     ds.time.attrs["units"] = (
         "seconds since 1970-01-01 00:00:00",
-        "seconds since 1970-01-01 00:00:00 {:+03d}".format(time_delta),
+        f"seconds since 1970-01-01 00:00:00 {time_delta:+03d}",
     )[abs(np.sign(time_delta))]
     ds.time.encoding["units"] = (
         "seconds since 1970-01-01 00:00:00",
-        "seconds since 1970-01-01 00:00:00 {:+03d}".format(time_delta),
+        f"seconds since 1970-01-01 00:00:00 {time_delta:+03d}",
     )[abs(np.sign(time_delta))]
 
     return ds
