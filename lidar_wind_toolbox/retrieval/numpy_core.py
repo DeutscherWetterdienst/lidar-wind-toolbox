@@ -120,30 +120,101 @@ class TimeGrid:
     sample_bin: np.ndarray
 
 
-@dataclass(frozen=True)
 class WindRetrievalResult:
-    wind: np.ndarray
-    wind_uncertainty: np.ndarray
-    speed: np.ndarray
-    speed_uncertainty: np.ndarray
-    direction: np.ndarray
-    direction_uncertainty: np.ndarray
-    r2: np.ndarray
-    condition_number: np.ndarray
-    radial_velocity_count: np.ndarray
-    quality: np.ndarray
-    component_quality: np.ndarray
-    binary_direction: np.ndarray
-    snr: np.ndarray
-    snr_min: np.ndarray
-    snr_max: np.ndarray
-    beta: np.ndarray
-    spectral_width: np.ndarray
-    time: np.ndarray
-    time_bounds: np.ndarray
-    height: np.ndarray
-    height_bounds: np.ndarray
-    horizontal_width: np.ndarray
+    """Mutable array-backed result populated during one retrieval."""
+
+    def __init__(
+        self,
+        *,
+        time: np.ndarray,
+        time_bounds: np.ndarray,
+        height: np.ndarray,
+        height_bounds: np.ndarray,
+        horizontal_width: np.ndarray,
+    ) -> None:
+        self.time = np.asarray(time)
+        self.time_bounds = np.asarray(time_bounds)
+        self.height = np.asarray(height)
+        self.height_bounds = np.asarray(height_bounds)
+        self.horizontal_width = np.asarray(horizontal_width)
+
+        bins = self.time.size
+        gates = self.height.size
+        self.wind = np.full((bins, gates, 3), np.nan)
+        self.wind_uncertainty = np.full_like(self.wind, np.nan)
+        self.speed = np.full((bins, gates), np.nan)
+        self.speed_uncertainty = np.full_like(self.speed, np.nan)
+        self.direction = np.full_like(self.speed, np.nan)
+        self.direction_uncertainty = np.full_like(self.speed, np.nan)
+        self.r2 = np.full_like(self.speed, np.nan)
+        self.condition_number = np.full_like(self.speed, np.nan)
+        self.radial_velocity_count = np.zeros_like(self.speed)
+        self.quality = np.zeros((bins, gates), dtype=bool)
+        self.component_quality = np.zeros((bins, gates, 3), dtype=bool)
+        self.binary_direction = np.full((bins, gates), -999, dtype=np.int64)
+        self.snr = np.full_like(self.speed, np.nan)
+        self.snr_min = np.full_like(self.speed, np.nan)
+        self.snr_max = np.full_like(self.speed, np.nan)
+        self.beta = np.full_like(self.speed, np.nan)
+        self.spectral_width = np.full_like(self.speed, np.nan)
+
+    def record_consensus(
+        self,
+        time_index: int,
+        *,
+        radial_velocity_count: np.ndarray,
+        binary_direction: np.ndarray,
+        snr: np.ndarray,
+        snr_min: np.ndarray,
+        snr_max: np.ndarray,
+        beta: np.ndarray,
+        spectral_width: np.ndarray,
+    ) -> None:
+        """Store diagnostics produced for one time bin."""
+
+        self.radial_velocity_count[time_index] = radial_velocity_count
+        self.binary_direction[time_index] = binary_direction
+        self.snr[time_index] = snr
+        self.snr_min[time_index] = snr_min
+        self.snr_max[time_index] = snr_max
+        self.beta[time_index] = beta
+        self.spectral_width[time_index] = spectral_width
+
+    def record_gate_solution(
+        self,
+        time_index: int,
+        gate_index: int,
+        *,
+        wind: np.ndarray,
+        wind_uncertainty: np.ndarray,
+        speed: float,
+        speed_uncertainty: float,
+        direction: float,
+        direction_uncertainty: float,
+        r2: float,
+        condition_number: float,
+    ) -> None:
+        """Store the solved wind products for one time/gate cell."""
+
+        self.wind[time_index, gate_index] = wind
+        self.wind_uncertainty[time_index, gate_index] = wind_uncertainty
+        self.speed[time_index, gate_index] = speed
+        self.speed_uncertainty[time_index, gate_index] = speed_uncertainty
+        self.direction[time_index, gate_index] = direction
+        self.direction_uncertainty[time_index, gate_index] = direction_uncertainty
+        self.r2[time_index, gate_index] = r2
+        self.condition_number[time_index, gate_index] = condition_number
+
+    def finalize_quality(self, parameters: RetrievalParameters) -> None:
+        """Compute aggregate and component quality masks in place."""
+
+        self.quality[...] = (
+            np.isfinite(self.speed)
+            & (self.radial_velocity_count >= parameters.minimum_radial_velocities)
+            & (self.condition_number <= parameters.condition_number_threshold)
+            & (self.r2 >= parameters.r2_threshold)
+        )
+        self.component_quality[...] = self.quality[..., None]
 
 
 def build_time_grid(
@@ -269,23 +340,21 @@ def retrieve_array(
     grid = build_time_grid(
         scan.time, date, parameters.averaging_minutes, parameters.utc_offset_hours
     )
-    bins = len(grid.timestamps)
-    wind = np.full((bins, gates, 3), np.nan)
-    uncertainty = np.full_like(wind, np.nan)
-    speed = np.full((bins, gates), np.nan)
-    speed_unc = np.full_like(speed, np.nan)
-    direction = np.full_like(speed, np.nan)
-    direction_unc = np.full_like(speed, np.nan)
-    r2 = np.full_like(speed, np.nan)
-    cn = np.full_like(speed, np.nan)
-    count = np.zeros_like(speed)
-    binary = np.full_like(speed, -999, dtype=np.int64)
-    snr = np.full_like(speed, np.nan)
-    snr_min = np.full_like(speed, np.nan)
-    snr_max = np.full_like(speed, np.nan)
-    beta = np.full_like(speed, np.nan)
-    spec = np.full_like(speed, np.nan)
-    for index in range(bins):
+    elev = np.nanmedian(scan.elevation[scan.elevation < 89])
+    heights = scan.height if scan.height is not None else scan.range
+    if scan.height is None:
+        heights = scan.range * np.sin(np.deg2rad(elev))
+    height_bounds = scan.range_bounds.copy()
+    height_bounds *= np.sin(np.deg2rad(elev))
+    width = 2 * scan.range * np.cos(np.deg2rad(elev))
+    result = WindRetrievalResult(
+        time=grid.timestamps,
+        time_bounds=grid.bounds,
+        height=heights,
+        height_bounds=height_bounds,
+        horizontal_width=width,
+    )
+    for index in range(result.time.size):
         rays = np.flatnonzero(grid.sample_bin == index)
         if not rays.size:
             continue
@@ -301,13 +370,16 @@ def retrieve_array(
         if not len(beams):
             continue
         valid = np.isfinite(beams)
-        count[index] = valid.sum(axis=0)
-        binary[index] = valid.T.dot(1 << np.arange(len(beams) - 1, -1, -1))
-        snr[index] = np.nanmedian(beam_snr, axis=0)
-        snr_min[index] = np.nanmin(beam_snr, axis=0)
-        snr_max[index] = np.nanmax(beam_snr, axis=0)
-        beta[index] = np.nanmedian(beam_beta, axis=0)
-        spec[index] = np.nanmedian(beam_spec, axis=0)
+        result.record_consensus(
+            index,
+            radial_velocity_count=valid.sum(axis=0),
+            binary_direction=valid.T.dot(1 << np.arange(len(beams) - 1, -1, -1)),
+            snr=np.nanmedian(beam_snr, axis=0),
+            snr_min=np.nanmin(beam_snr, axis=0),
+            snr_max=np.nanmax(beam_snr, axis=0),
+            beta=np.nanmedian(beam_beta, axis=0),
+            spectral_width=np.nanmedian(beam_spec, axis=0),
+        )
         geometry = np.round(build_Amatrix(azimuth, elevation), 6)
         for gate in range(gates):
             good = valid[:, gate]
@@ -322,41 +394,26 @@ def retrieve_array(
             predicted = matrix @ estimate
             residual = np.sum((values - predicted) ** 2)
             total = np.sum((values - np.mean(values)) ** 2)
-            r2[index, gate] = np.nan if total == 0 else 1 - residual / total
-            cn[index, gate] = CN_est(np.ma.masked_array(matrix, mask=False))
-            wind[index, gate] = estimate
-            uncertainty[index, gate] = unc
-            speed[index, gate], speed_unc[index, gate] = tuple(uvw_2_spd(estimate, unc).values())
-            direction[index, gate], direction_unc[index, gate] = tuple(
+            current_r2 = np.nan if total == 0 else 1 - residual / total
+            current_cn = CN_est(np.ma.masked_array(matrix, mask=False))
+            current_speed, current_speed_uncertainty = tuple(
+                uvw_2_spd(estimate, unc).values()
+            )
+            current_direction, current_direction_uncertainty = tuple(
                 uvw_2_dir(estimate, unc).values()
             )
-    q = (
-        np.isfinite(speed)
-        & (count >= parameters.minimum_radial_velocities)
-        & (cn <= parameters.condition_number_threshold)
-        & (r2 >= parameters.r2_threshold)
-    )
-    component_q = np.repeat(q[..., None], 3, axis=2)
-    heights = scan.height if scan.height is not None else scan.range
-    if scan.height is None:
-        elev = np.nanmedian(scan.elevation[scan.elevation < 89])
-        heights = scan.range * np.sin(np.deg2rad(elev))
-    height_bounds = scan.range_bounds.copy()
-    height_bounds *= np.sin(np.deg2rad(np.nanmedian(scan.elevation[scan.elevation < 89])))
-    width = 2 * scan.range * np.cos(np.deg2rad(np.nanmedian(scan.elevation[scan.elevation < 89])))
-    return WindRetrievalResult(
-        wind,
-        uncertainty,
-        speed,
-        speed_unc,
-        direction,
-        direction_unc,
-        r2,
-        cn,
-        count,
-        q,
-        component_q,
-        binary, snr, snr_min, snr_max, beta, spec, grid.timestamps, grid.bounds, heights,
-        height_bounds, width,
-    )
+            result.record_gate_solution(
+                index,
+                gate,
+                wind=estimate,
+                wind_uncertainty=unc,
+                speed=current_speed,
+                speed_uncertainty=current_speed_uncertainty,
+                direction=current_direction,
+                direction_uncertainty=current_direction_uncertainty,
+                r2=current_r2,
+                condition_number=current_cn,
+            )
+    result.finalize_quality(parameters)
+    return result
 

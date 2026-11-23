@@ -6,6 +6,7 @@ import pytest
 from lidar_wind_toolbox.retrieval.numpy_core import (
     LidarScan,
     RetrievalParameters,
+    WindRetrievalResult,
     build_time_grid,
 )
 
@@ -64,3 +65,60 @@ def test_legacy_parameters_are_typed() -> None:
     assert parameters.number_of_directions == 5
     assert parameters.averaging_minutes == 10
     assert parameters.excluded_azimuths_deg == (10.0, 20.0)
+
+
+def test_wind_retrieval_result_owns_and_records_output_arrays() -> None:
+    result = WindRetrievalResult(
+        time=np.array([1, 2]),
+        time_bounds=np.array([[0, 1], [1, 2]]),
+        height=np.array([100.0, 200.0]),
+        height_bounds=np.array([[75.0, 125.0], [175.0, 225.0]]),
+        horizontal_width=np.array([20.0, 40.0]),
+    )
+
+    assert result.wind.shape == (2, 2, 3)
+    assert result.speed.shape == (2, 2)
+    assert np.isnan(result.wind).all()
+    assert not result.quality.any()
+    assert (result.binary_direction == -999).all()
+
+    result.record_consensus(
+        0,
+        radial_velocity_count=np.array([4.0, 3.0]),
+        binary_direction=np.array([15, 7]),
+        snr=np.array([1.0, 2.0]),
+        snr_min=np.array([0.5, 1.5]),
+        snr_max=np.array([1.5, 2.5]),
+        beta=np.array([1e-6, 2e-6]),
+        spectral_width=np.array([0.4, 0.5]),
+    )
+    result.record_gate_solution(
+        0,
+        0,
+        wind=np.array([3.0, 2.0, 0.0]),
+        wind_uncertainty=np.array([0.1, 0.1, 0.1]),
+        speed=3.6,
+        speed_uncertainty=0.1,
+        direction=236.3,
+        direction_uncertainty=1.0,
+        r2=0.99,
+        condition_number=2.0,
+    )
+
+    result.finalize_quality(
+        RetrievalParameters(
+            number_of_directions=4,
+            averaging_minutes=30,
+            consensus_range_mps=3.0,
+            consensus_percentage=60.0,
+            snr_threshold_db=0.0,
+            minimum_radial_velocities=3,
+            condition_number_threshold=10.0,
+            r2_threshold=0.95,
+        )
+    )
+
+    np.testing.assert_allclose(result.wind[0, 0], [3.0, 2.0, 0.0])
+    assert result.binary_direction[0, 0] == 15
+    assert result.quality[0, 0]
+    assert not result.quality[0, 1]
