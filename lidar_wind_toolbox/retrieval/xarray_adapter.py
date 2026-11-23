@@ -115,14 +115,15 @@ def result_to_xarray(
         "qv": (("time", "height"), flag(component_quality[..., 1])),
         "qw": (("time", "height"), flag(component_quality[..., 2])),
         "binary_dir": (("time", "height"), numeric(result.binary_direction[:, sl])),
-        "snr": (("time", "height"), numeric(result.snr[:, sl])),
-        "snr_min": (("time", "height"), numeric(result.snr_min[:, sl])),
-        "snr_max": (("time", "height"), numeric(result.snr_max[:, sl])),
         "beta": (("time", "height"), numeric(result.beta[:, sl])),
         "spec_w": (("time", "height"), numeric(result.spectral_width[:, sl])),
         "time_bnds": (("time", "nv"), result.time_bounds.astype(np.float64)),
         "height_bnds": (("height", "nv"), result.height_bounds[n:].astype(np.float32)),
     }
+    if config.get("EXPERIMENTAL_WIND_RETRIEVAL", "0") == "1":
+        data["snr"] = (("time", "height"), numeric(result.snr[:, sl]))
+        data["snr_min"] = (("time", "height"), numeric(result.snr_min[:, sl]))
+        data["snr_max"] = (("time", "height"), numeric(result.snr_max[:, sl]))
     coords = {
         "time": ("time", result.time.astype(np.float64)),
         "height": ("height", result.height[sl].astype(np.float32)),

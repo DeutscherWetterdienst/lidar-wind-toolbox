@@ -279,4 +279,5 @@ def test_typed_retrieval_uses_original_by_default(experimental: bool) -> None:
         retrieval=replace(context.retrieval, use_experimental_retrieval=experimental),
     )
     result = retrieve_windcube_vad(native_windcube_level1_dataset(), context)
-    assert ("snr_max" in result) is experimental
+    for name in ("snr", "snr_min", "snr_max"):
+        assert (name in result) is experimental
