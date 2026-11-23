@@ -13,7 +13,7 @@ from lidar_wind_toolbox.retrieval.geometry import build_Amatrix
 
 @pytest.mark.parametrize("system", ["halo", "windcube"])
 @pytest.mark.parametrize("exclude", [False, True])
-def test_wind_retrieval_with_interleaved_vertical_beams(system, exclude):
+def test_wind_retrieval_with_interleaved_vertical_beams(system, exclude) -> None:
     # Four slanted directions plus a vertical stare in each scan cycle.
     azimuth = np.tile([0.0, 90.0, 180.0, 270.0, 0.0], 8)
     elevation = np.tile([60.0, 60.0, 60.0, 60.0, 90.0], 8)
@@ -81,14 +81,14 @@ def test_wind_retrieval_with_interleaved_vertical_beams(system, exclude):
     np.testing.assert_equal(trimmed.height, result.height[1:])
 
 
-def test_general_halo_stare_processing_loads_wind_support(tmp_path, monkeypatch):
+def test_general_halo_stare_processing_loads_wind_support(tmp_path, monkeypatch) -> None:
     wind_path = tmp_path / "2024" / "202407" / "wind_20240720.nc"
     wind_path.parent.mkdir(parents=True)
     xr.Dataset({"wspeed": ("time", [4.0])}).to_netcdf(wind_path)
     stare = xr.Dataset(coords={"range": [100.0]})
     captured = []
 
-    def retrieve(ds_stare, ds_wind, date, cfg):
+    def retrieve(ds_stare, ds_wind, date, cfg) -> xr.Dataset:
         assert ds_stare is stare
         captured.append(ds_wind.wspeed.item())
         return xr.Dataset()

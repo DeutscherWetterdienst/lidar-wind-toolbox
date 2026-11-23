@@ -28,7 +28,7 @@ def calculate_wind(confDict, date_chosen, ds_tmp):
         return process_halo(confDict, date_chosen, ds_tmp)
 
 
-def process_halo(confDict, date_chosen, ds_tmp) -> Any:
+def process_halo(confDict, date_chosen, ds_tmp) -> xr.Dataset:
     experimental_wind = confDict.get("EXPERIMENTAL_WIND_RETRIEVAL", "0") == "1"
     retrieve_standard = experimental.lvl2vad_standard if experimental_wind else lvl2vad_standard
     scan_type = confDict["SCAN_TYPE"].lower()
@@ -43,28 +43,11 @@ def process_halo(confDict, date_chosen, ds_tmp) -> Any:
         print("processing 'Streamline-Stare' setting!")
         with xr.open_dataset(build_wind_l2_filename(confDict, date_chosen)) as ds_wind:
             ds_lvl2 = process_stare_l2_from_ds(ds_tmp, ds_wind, date_chosen, confDict)
-    return ds_lvl2
+        return ds_lvl2
+    raise ValueError(f"Unsupported scan_type {scan_type}")
 
 
-def process_halo(confDict, date_chosen, ds_tmp) -> Any:
-    experimental_wind = confDict.get("EXPERIMENTAL_WIND_RETRIEVAL", "0") == "1"
-    retrieve_standard = experimental.lvl2vad_standard if experimental_wind else lvl2vad_standard
-    scan_type = confDict["SCAN_TYPE"].lower()
-
-    if (len(ds_tmp.range.dims) > 1) & (scan_type == "dbs"):
-        print("processing 'Streamline-dbs' setting!")
-        ds_lvl2 = retrieve_standard(ds_tmp, date_chosen, confDict)
-    if ("vad" in scan_type) | ("user" in scan_type):
-        print("processing 'Streamline-VAD' setting!")
-        ds_lvl2 = retrieve_standard(ds_tmp, date_chosen, confDict)
-    if "stare" in scan_type:
-        print("processing 'Streamline-Stare' setting!")
-        with xr.open_dataset(build_wind_l2_filename(confDict, date_chosen)) as ds_wind:
-            ds_lvl2 = process_stare_l2_from_ds(ds_tmp, ds_wind, date_chosen, confDict)
-    return ds_lvl2
-
-
-def process_windcube(confDict, date_chosen, ds_tmp) -> Any:
+def process_windcube(confDict, date_chosen, ds_tmp) -> xr.Dataset:
     experimental_wind = confDict.get("EXPERIMENTAL_WIND_RETRIEVAL", "0") == "1"
     retrieve_standard = experimental.lvl2vad_standard if experimental_wind else lvl2vad_standard
     retrieve_windcube = experimental.lvl2wcdbs if experimental_wind else lvl2wcdbs
@@ -89,7 +72,7 @@ def process_windcube(confDict, date_chosen, ds_tmp) -> Any:
     return ds_lvl2
 
 
-def add_attributes_from_confict_dict(confDict, ds_lvl2):
+def add_attributes_from_confict_dict(confDict, ds_lvl2) -> None:
     ds_lvl2.attrs["title"] = confDict["NC_TITLE"]
     ds_lvl2.attrs["institution"] = confDict["NC_INSTITUTION"]
     ds_lvl2.attrs["site_location"] = confDict["NC_SITE_LOCATION"]
