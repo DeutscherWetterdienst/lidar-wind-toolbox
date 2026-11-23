@@ -161,24 +161,30 @@ class WindRetrievalResult:
     def record_consensus(
         self,
         time_index: int,
-        *,
-        radial_velocity_count: np.ndarray,
-        binary_direction: np.ndarray,
-        snr: np.ndarray,
-        snr_min: np.ndarray,
-        snr_max: np.ndarray,
-        beta: np.ndarray,
-        spectral_width: np.ndarray,
-    ) -> None:
-        """Store diagnostics produced for one time bin."""
+        beams: np.ndarray,
+        beam_snr: np.ndarray,
+        beam_beta: np.ndarray,
+        beam_spectral_width: np.ndarray,
+    ) -> np.ndarray:
+        """Reduce and store consensus diagnostics for one time bin."""
 
-        self.radial_velocity_count[time_index] = radial_velocity_count
-        self.binary_direction[time_index] = binary_direction
-        self.snr[time_index] = snr
-        self.snr_min[time_index] = snr_min
-        self.snr_max[time_index] = snr_max
-        self.beta[time_index] = beta
-        self.spectral_width[time_index] = spectral_width
+        arrays = (beams, beam_snr, beam_beta, beam_spectral_width)
+        if any(array.shape != beams.shape for array in arrays[1:]):
+            raise ValueError("consensus arrays must all have shape (beam, gate)")
+        if beams.ndim != 2:
+            raise ValueError("beams must have shape (beam, gate)")
+
+        valid = np.isfinite(beams)
+        self.radial_velocity_count[time_index] = valid.sum(axis=0)
+        self.binary_direction[time_index] = valid.T.dot(
+            1 << np.arange(beams.shape[0] - 1, -1, -1)
+        )
+        self.snr[time_index] = np.nanmedian(beam_snr, axis=0)
+        self.snr_min[time_index] = np.nanmin(beam_snr, axis=0)
+        self.snr_max[time_index] = np.nanmax(beam_snr, axis=0)
+        self.beta[time_index] = np.nanmedian(beam_beta, axis=0)
+        self.spectral_width[time_index] = np.nanmedian(beam_spectral_width, axis=0)
+        return valid
 
     def record_gate_solution(
         self,
@@ -369,16 +375,12 @@ def retrieve_array(
         ) = _consensus_beams(scan, rays, parameters, method)
         if not len(beams):
             continue
-        valid = np.isfinite(beams)
-        result.record_consensus(
+        valid = result.record_consensus(
             index,
-            radial_velocity_count=valid.sum(axis=0),
-            binary_direction=valid.T.dot(1 << np.arange(len(beams) - 1, -1, -1)),
-            snr=np.nanmedian(beam_snr, axis=0),
-            snr_min=np.nanmin(beam_snr, axis=0),
-            snr_max=np.nanmax(beam_snr, axis=0),
-            beta=np.nanmedian(beam_beta, axis=0),
-            spectral_width=np.nanmedian(beam_spec, axis=0),
+            beams,
+            beam_snr,
+            beam_beta,
+            beam_spec,
         )
         geometry = np.round(build_Amatrix(azimuth, elevation), 6)
         for gate in range(gates):

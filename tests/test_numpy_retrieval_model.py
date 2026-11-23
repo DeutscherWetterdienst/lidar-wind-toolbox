@@ -82,16 +82,26 @@ def test_wind_retrieval_result_owns_and_records_output_arrays() -> None:
     assert not result.quality.any()
     assert (result.binary_direction == -999).all()
 
-    result.record_consensus(
+    valid = result.record_consensus(
         0,
-        radial_velocity_count=np.array([4.0, 3.0]),
-        binary_direction=np.array([15, 7]),
-        snr=np.array([1.0, 2.0]),
-        snr_min=np.array([0.5, 1.5]),
-        snr_max=np.array([1.5, 2.5]),
-        beta=np.array([1e-6, 2e-6]),
-        spectral_width=np.array([0.4, 0.5]),
+        np.array([[1.0, 2.0], [1.1, np.nan], [0.9, 2.1], [1.0, np.nan]]),
+        np.array([[1.0, 2.0], [1.0, np.nan], [1.0, 2.0], [1.0, np.nan]]),
+        np.array([[1e-6, 2e-6], [1e-6, np.nan], [1e-6, 2e-6], [1e-6, np.nan]]),
+        np.array([[0.4, 0.5], [0.4, np.nan], [0.4, 0.5], [0.4, np.nan]]),
     )
+    np.testing.assert_array_equal(
+        valid,
+        [[True, True], [True, False], [True, True], [True, False]],
+    )
+
+    with pytest.raises(ValueError, match="shape"):
+        result.record_consensus(
+            0,
+            np.ones((4, 2)),
+            np.ones((4, 1)),
+            np.ones((4, 2)),
+            np.ones((4, 2)),
+        )
     result.record_gate_solution(
         0,
         0,
@@ -120,5 +130,8 @@ def test_wind_retrieval_result_owns_and_records_output_arrays() -> None:
 
     np.testing.assert_allclose(result.wind[0, 0], [3.0, 2.0, 0.0])
     assert result.binary_direction[0, 0] == 15
+    np.testing.assert_allclose(result.snr[0], [1.0, 2.0])
+    np.testing.assert_allclose(result.snr_min[0], [1.0, 2.0])
+    np.testing.assert_allclose(result.snr_max[0], [1.0, 2.0])
     assert result.quality[0, 0]
     assert not result.quality[0, 1]
