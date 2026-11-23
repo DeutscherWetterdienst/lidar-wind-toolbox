@@ -50,6 +50,11 @@ def process_dataset(
             with xr.open_dataset(build_wind_l2_filename(confDict, date_chosen)) as ds_wind:
                 ds_lvl2 = process_stare_l2_from_ds(ds_tmp, ds_wind, date_chosen, confDict)
 
+    add_attributes_from_confict_dict(confDict, ds_lvl2)
+    return ds_lvl2
+
+
+def add_attributes_from_confict_dict(confDict, ds_lvl2):
     ds_lvl2.attrs["title"] = confDict["NC_TITLE"]
     ds_lvl2.attrs["institution"] = confDict["NC_INSTITUTION"]
     ds_lvl2.attrs["site_location"] = confDict["NC_SITE_LOCATION"]
@@ -88,12 +93,12 @@ def process_dataset(
     else:
         ds_lvl2.attrs["instrument_serial_number"] = " "
     ds_lvl2.attrs["history"] = (
-        confDict["NC_HISTORY"]
-        + " version "
-        + confDict["VERSION"]
-        + " on "
-        + str(pd.to_datetime(datetime.datetime.now()))
-        + " UTC"
+            confDict["NC_HISTORY"]
+            + " version "
+            + confDict["VERSION"]
+            + " on "
+            + str(pd.to_datetime(datetime.datetime.now()))
+            + " UTC"
     )
     if "OPERATIONAL" in confDict:
         if bool(int(confDict["OPERATIONAL"])):
@@ -107,7 +112,6 @@ def process_dataset(
                 ds_lvl2[item] = ds_lvl2[item].where(ds_lvl2[item] == -999.0, other=-999.0)
 
     ds_lvl2.attrs["comments"] = confDict["NC_COMMENTS"]
-    return ds_lvl2
 
 
 def write_netcdf(ds: xr.Dataset, filename: str | Path, confDict: dict[str, str]) -> None:
