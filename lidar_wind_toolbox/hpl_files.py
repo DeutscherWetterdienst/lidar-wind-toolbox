@@ -198,12 +198,3 @@ class hpl_files(object):
             ds.to_netcdf(path, encoding=encoding)
         ds.close()
         return path
-
-    @staticmethod
-    def combine_lvl1_to_ds(
-        hpl_list: "hpl_files",
-        confDict: dict[str, str],
-        date_chosen: datetime.datetime,
-        time_chosen: datetime.datetime | None = None,
-    ) -> xr.Dataset:
-        """Combine discovered files through the byte-content/domain boundary."""
