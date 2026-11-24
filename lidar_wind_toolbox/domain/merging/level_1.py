@@ -5,10 +5,9 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 import xarray as xr
-from pandas import Timedelta
 
-from lidar_wind_toolbox.readers.read_byte_content import read_byte_content
-from lidar_wind_toolbox.readers.windcube_bytes import read_wc_type_bytes, read_wcsradial_bytes
+from lidar_wind_toolbox.adapter.halo import read_halo
+from lidar_wind_toolbox.adapter.windcube import read_wc_type, read_wcsradial
 
 
 def combine_lvl1_to_ds(
@@ -22,7 +21,7 @@ def combine_lvl1_to_ds(
 
     if confDict["SYSTEM"] == "halo":
         ds = xr.concat(
-            (read_byte_content(iit, confDict) for iit in file_contents),
+            (read_halo(iit, confDict) for iit in file_contents),
             dim="time",
             data_vars="minimal",
             coords="minimal",
@@ -39,12 +38,9 @@ def combine_lvl1_to_ds(
             "SCAN_TYPE"
         ].lower():
             print("processing 'Windcube-fixed/-stare' setting!")
+            datasets = [read_wcsradial(content, confDict) for content in file_contents]
             ds = xr.concat(
-                (
-                    read_wcsradial_bytes(iit, confDict)
-                    for iit in file_contents
-                    if read_wcsradial_bytes(iit, confDict) is not False
-                ),
+                (dataset for dataset in datasets if dataset is not False),
                 dim="time",
                 data_vars="minimal",
                 compat="override",
@@ -58,12 +54,9 @@ def combine_lvl1_to_ds(
                 ds = ds.drop_vars(["delv"])
         else:
             print("processing 'WindCube-dbs/-vad/-pp' setting!")
+            datasets = [read_wc_type(content) for content in file_contents]
             ds = xr.concat(
-                (
-                    read_wc_type_bytes(iit)
-                    for iit in file_contents
-                    if read_wc_type_bytes(iit) is not False
-                ),
+                (dataset for dataset in datasets if dataset is not False),
                 dim="time",
                 data_vars="minimal",
                 compat="override",
@@ -85,10 +78,13 @@ def combine_lvl1_to_ds(
     # ds = ds._drop_vars(['delv'])
     ## choose only timestamp within range...
     # TODO IDA-2536: Adjust time range here
-    if time_chosen is not None or (data_from is not None and data_to is not None):
+    if data_from is not None and data_to is not None:
         # ...a time window of range AVG_MIN
         start_dt = convert_to_instant(data_from - timedelta(minutes=int(confDict["AVG_MIN"])))
         end_dt = convert_to_instant(data_to)
+    elif time_chosen is not None:
+        start_dt = convert_to_instant(time_chosen - timedelta(minutes=int(confDict["AVG_MIN"])))
+        end_dt = convert_to_instant(time_chosen)
     else:
         # ...a daily range
         start_dt = convert_to_instant(
@@ -170,8 +166,9 @@ def combine_lvl1_to_ds(
     return ds
 
 
-def convert_to_instant(data_to: datetime) -> Timedelta:
+def convert_to_instant(data_to: datetime) -> float:
     if data_to.tzinfo is None:
         return (pd.to_datetime(data_to) - pd.Timestamp("1970-01-01")) / pd.Timedelta("1s")
     else:
         return (pd.to_datetime(data_to) - pd.Timestamp("1970-01-01", tz="UTC")) / pd.Timedelta("1s")
+

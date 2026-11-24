@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
-from lidar_wind_toolbox.combining_level_1_files import combine_lvl1_to_ds
+from lidar_wind_toolbox.domain.merging.level_1 import combine_lvl1_to_ds
 from lidar_wind_toolbox.exceptions import UnsupportedScanTypeError
 from lidar_wind_toolbox.hpl_files import hpl_files
 from lidar_wind_toolbox.main_proc import process_dataset

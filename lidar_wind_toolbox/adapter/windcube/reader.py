@@ -1,5 +1,4 @@
-import datetime
-from io import BytesIO, TextIOWrapper
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -10,164 +9,79 @@ from lidar_wind_toolbox.hpl_files import hpl_files
 from lidar_wind_toolbox.retrieval.uncertainty import calc_sigma_single
 
 
-def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Dataset:
-    with TextIOWrapper(BytesIO(file_content), encoding="utf-8") as infile:
-        header_info = True
-        mheader = {}
-        for line in infile:
-            if line.startswith("****"):
-                header_info = False
-                ## Adjust header in order to extract data formats more easily
-                ## 1st for 'Data line 1' , i.e. time of beam etc.
-                tmp = [x.split() for x in mheader["Data line 1"].split("  ")]
-                if len(tmp) > 3:
-                    tmp.append(" ".join([tmp[2][2], tmp[2][3]]))
-                    tmp.append(" ".join([tmp[2][4], tmp[2][5]]))
-                tmp[0] = " ".join(tmp[0])
-                tmp[1] = " ".join(tmp[1])
-                tmp[2] = " ".join([tmp[2][0], tmp[2][1]])
-                mheader["Data line 1"] = tmp
-                tmp = mheader["Data line 1 (format)"].split(",1x,")
-                tmp.append(tmp[-1])
-                tmp.append(tmp[-1])
-                mheader["Data line 1 (format)"] = tmp
-                ## Adjust header in order to extract data formats more easily
-                ## 2st for 'Data line 2' , i.e. actual data
-                tmp = [x.split() for x in mheader["Data line 2"].split("  ")]
-                tmp[0] = " ".join(tmp[0])
-                tmp[1] = " ".join(tmp[1])
-                tmp[2] = " ".join(tmp[2])
-                tmp[3] = " ".join(tmp[3])
-                mheader["Data line 2"] = tmp
-                tmp = mheader["Data line 2 (format)"].split(",1x,")
-                mheader["Data line 2 (format)"] = tmp
-                ## start counter for time and range gates
-                counter_jj = 0
-                continue  # stop the loop and continue with the next line
-
-            tmp = hpl_files.switch(header_info, line)
-            ## this temporary variable indicates whether the a given data line includes
-            # the spectral width or not, so 2d information can be distinguished from
-            # 1d information.
-            indicator = len(line[:10].split())
-
-            if header_info:
-                try:
-                    if tmp[0][0:1] == "i":
-                        tmp_tmp = {"Data line 2 (format)": tmp[0]}
-                    else:
-                        tmp_tmp = {tmp[0]: tmp[1]}
-                except:
-                    if tmp[0][0] == "f":
-                        tmp_tmp = {"Data line 1 (format)": tmp[0]}
-                    else:
-                        tmp_tmp = {"blank": "nothing"}
-                mheader.update(tmp_tmp)
-            elif not header_info:
-                if counter_jj == 0:
-                    n_o_rays = (
-                        len(TextIOWrapper(file_content, encoding="utf-8").read().splitlines()) - 17
-                    ) // (int(mheader["Number of gates"]) + 1)
-                    mbeam = np.recarray(
-                        (n_o_rays,),
-                        dtype=np.dtype(
-                            [
-                                ("time", "f8"),
-                                ("azimuth", "f4"),
-                                ("elevation", "f4"),
-                                ("pitch", "f4"),
-                                ("roll", "f4"),
-                            ]
-                        ),
-                    )
-                    mdata = np.recarray(
-                        (n_o_rays, int(mheader["Number of gates"])),
-                        dtype=np.dtype(
-                            [
-                                ("range gate", "i2"),
-                                ("velocity", "f4"),
-                                ("snrp1", "f4"),
-                                ("beta", "f4"),
-                                ("dels", "f4"),
-                            ]
-                        ),
-                    )
-                    mdata[:, :] = np.full(mdata.shape, -999.0)
-
-                # store tmp in time array
-                if indicator == 1:
-                    dt = np.dtype(
-                        [
-                            ("time", "f8"),
-                            ("azimuth", "f4"),
-                            ("elevation", "f4"),
-                            ("pitch", "f4"),
-                            ("roll", "f4"),
-                        ]
-                    )
-                    if len(tmp) < 4:
-                        tmp.extend(["-999"] * 2)
-                    if counter_jj < n_o_rays:
-                        mbeam[counter_jj] = np.array(tuple(tmp), dtype=dt)
-                        counter_jj = counter_jj + 1
-                # store tmp in range gate array
-                elif indicator == 2:
-                    dt = np.dtype(
-                        [
-                            ("range gate", "i2"),
-                            ("velocity", "f4"),
-                            ("snrp1", "f4"),
-                            ("beta", "f4"),
-                            ("dels", "f4"),
-                        ]
-                    )
-                    ii_index = np.array(tmp[0], dtype=dt[0])
-
-                    if len(tmp) == 4:
-                        tmp.append("-999")
-                        mdata[counter_jj - 1, ii_index] = np.array(tuple(tmp), dtype=dt)
-                    elif len(tmp) == 5:
-                        mdata[counter_jj - 1, ii_index] = np.array(tuple(tmp), dtype=dt)
-
-    # set time information
-    time_tmp = (
-        pd.to_numeric(
-            pd.to_timedelta(pd.DataFrame(mbeam)["time"], unit="h")
-            + pd.to_datetime(
-                datetime.datetime.strptime(mheader["Start time"], "%Y%m%d %H:%M:%S.%f").date()
-            )
-        ).values
-        / 10**9
+def read_wc_type(file_content: bytes) -> xr.Dataset | Literal[False]:
+    try:
+        ds_root = xr.open_dataset(file_content)
+    except OSError:
+        print("corrupted netCDF: '{}'")
+        return False
+    sweep_list = list(ds_root.sweep_group_name.data)
+    ds_ind = xr.concat(
+        (
+            xr.open_dataset(file_content, group=sweep_ii, decode_times=False)
+            for sweep_ii in sweep_list
+        ),
+        dim="time",
+        data_vars="minimal",
+        compat="override",
+        coords="minimal",
     )
-    time_ds = [
-        x + (datetime.timedelta(days=1)).total_seconds() if time_tmp[0] - x > 0 else x
-        for x in time_tmp
-    ]
+    return ds_ind
 
-    # calculate range in meters from range gate number, gate length
-    range_mid = hpl_files.range_calc(mdata["range gate"][0, :], confDict)
+
+def read_wcsradial(
+    file_content: bytes, confDict: dict[str, str]
+) -> xr.Dataset | Literal[False]:
+    ## the windcube netCDF l1-files are in cf-radial format
+    # this requires a workaround to open to access the radial data,
+    # when relying on xarray package alone
+
+    # read root attributes
+    try:
+        ds_root = xr.open_dataset(file_content)
+    except OSError:
+        print("corrupted netCDF: '{}'")
+        return False
+
+    if "time_reference" in list(ds_root.keys()):
+        time_reference = ds_root.time_reference.data
+    else:
+        time_reference = None
+    sweep_list = list(ds_root.sweep_group_name.data)
+    # read radial data in sweep group
+    ds_tmp = xr.concat(
+        (
+            xr.open_dataset(file_content, group=sweep_ii, decode_times=False)
+            for sweep_ii in sweep_list
+        ),
+        dim="time",
+        data_vars="minimal",
+        compat="override",
+        coords="minimal",
+    )
+    if time_reference is None:
+        time_reference = ds_tmp.time_reference.data
+
+    range_mid = hpl_files.range_calc(ds_tmp.gate_index.data.astype(int), confDict)
     dr = (np.float32(confDict["PULS_DURATION"]) * SPEED_OF_LIGHT / 4).astype("f4")
     range_bnds = np.array([range_mid - dr, range_mid + dr]).T
-    tgint = (2 * np.array(confDict["RANGE_GATE_LENGTH"], dtype="f4") / SPEED_OF_LIGHT).astype("f4")
+    tgint = 2 * (range_bnds[0, 1] - range_bnds[0, 0]) / SPEED_OF_LIGHT
 
-    SNR_tmp = np.copy(mdata["snrp1"]) - 1
-    SNR_tmp[abs(SNR_tmp) <= np.finfo(np.float32).eps] = np.finfo(np.float32).eps
-    ## calculate SNR in dB
-    SNR_dB = 10 * np.log10(SNR_tmp.astype(complex)).real
-    ## calculate measurement uncertainty, with consensus indices
+    zenith = np.array([90 - ds_root.sweep_fixed_angle.data[0]] * ds_tmp.time.size)
+
+    ## calculate measurement uncertainty
     sigma_tmp = calc_sigma_single(
-        SNR_dB,
-        int(mheader["Gate length (pts)"]),
+        ds_tmp.cnr.data,
+        int(confDict["NUMBER_OF_GATE_POINTS"]),
         int(confDict["PULSES_PER_DIRECTION"]),
-        float(mheader["Gate length (pts)"]) / tgint / 2 * float(confDict["SYSTEM_WAVELENGTH"]),
+        ((ds_tmp.radial_wind_speed.max() - ds_tmp.radial_wind_speed.min()).data / 2).astype("f4"),
         1.316,
     )
-
     return xr.Dataset(
         {
             "dv": (
                 ["time", "range"],
-                mdata["velocity"],
+                ds_tmp.radial_wind_speed.data,
                 {
                     "units": "m s-1",
                     "long_name": "radial velocity of scatterers away from instrument",
@@ -191,7 +105,7 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
             ),
             "intensity": (
                 ["time", "range"],
-                mdata["snrp1"],
+                (10 ** (ds_tmp.cnr.data / 10) + 1).astype("f4"),
                 {
                     "units": "1",
                     "long_name": "backscatter intensity: b_int = snr+1, where snr denotes the signal-to-noise-ratio",
@@ -203,7 +117,7 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
             ),
             "beta": (
                 ["time", "range"],
-                mdata["beta"],
+                ds_tmp.relative_beta.data.astype("f4"),
                 {
                     "units": "m-1 sr-1",
                     "long_name": "attenuated backscatter coefficient",
@@ -215,7 +129,7 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
             ),
             "delv": (
                 ["time", "range"],
-                mdata["dels"],
+                ds_tmp.doppler_spectrum_width.data.astype("f4"),
                 {
                     "units": "m s-1",
                     "long_name": "spectral width of detected signal",
@@ -227,7 +141,7 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
             ),
             "azi": (
                 "time",
-                mbeam["azimuth"],
+                ds_tmp.azimuth.data.astype("f4"),
                 {
                     "units": "degree",
                     "long_name": "sensor azimuth due reference point",
@@ -236,17 +150,9 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
                     "comments": 'sensor_azimuth_angle is the horizontal angle between the line of sight from the observation point to the sensor and a reference direction at the observation point, which is often due north. The angle is measured clockwise positive, starting from the reference direction. A comment attribute should be added to a data variable with this standard name to specify the reference direction. A standard name also exists for platform_azimuth_angle, where "platform" refers to the vehicle from which observations are made e.g. aeroplane, ship, or satellite. For some viewing geometries the sensor and the platform cannot be assumed to be close enough to neglect the difference in calculated azimuth angle.',
                 },
             ),
-            #                         , 'ele': ('time'
-            #                                  , mbeam['elevation']
-            #                                  , {'units' : 'degree'
-            #                                    ,'long_name' : 'beam direction due elevation'
-            #                                    ,'standard_name' : 'elevation_angle'
-            #                                    ,'comments' : 'elevation angle of the beam to local horizone; a value of 90 is directly overhead'
-            #                                    }
-            #                                   )
             "zenith": (
                 "time",
-                90 - mbeam["elevation"],
+                zenith.astype("f4"),
                 {
                     "units": "degree",
                     "long_name": "beam direction due zenith",
@@ -317,13 +223,9 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
                     "_FillValue": -999.0,
                 },
             ),
-            #                         , 'id': ([]
-            #                                 , confDict['SYSTEM_ID']
-            #                                 , {'long_name': 'system identification number'}
-            #                                 )
             "nrg": (
                 [],
-                np.float32(mheader["Number of gates"]),
+                np.float32(ds_tmp.dims["range"]),
                 {
                     "long_name": "total number of range gates per ray",
                     "units": "1",
@@ -332,12 +234,12 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
             ),
             "lrg": (
                 [],
-                np.float32(mheader["Range gate length (m)"]),
+                np.float32(ds_tmp.range_gate_length.data),
                 {"units": "m", "long_name": "range gate length", "_FillValue": -999.0},
             ),
             "nsmpl": (
                 [],
-                np.float32(mheader["Gate length (pts)"]),
+                np.float32(confDict["NUMBER_OF_GATE_POINTS"]),
                 {"long_name": "points per range gate", "units": "1"},
             ),
             "prf": (
@@ -352,16 +254,23 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
             "npls": (
                 [],
                 np.float32(confDict["PULSES_PER_DIRECTION"]),
-                {"long_name": "number of pulses per ray", "units": "1", "_FillValue": -999.0},
+                {
+                    "long_name": "number of pulses per ray",
+                    "units": "1",
+                    "_FillValue": -999.0,
+                },
             ),
             "focus": (
                 [],
-                np.float32(mheader["Focus range"]),
+                np.float32(confDict["FOCUS"]),
                 {"units": "m", "long_name": "telescope focus length", "_FillValue": -999.0},
             ),
             "resv": (
                 [],
-                np.float32(mheader["Resolution (m/s)"]),
+                (
+                    (ds_tmp.radial_wind_speed.max() - ds_tmp.radial_wind_speed.min()).data
+                    / float(confDict["FFT_POINTS"])
+                ).astype("f4"),
                 {
                     "units": "m s-1",
                     "long_name": "resolution of Doppler velocity",
@@ -370,7 +279,10 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
             ),
             "nqf": (
                 [],
-                (np.float32(mheader["Gate length (pts)"]) / tgint / 2).astype("f4"),
+                (
+                    (ds_tmp.radial_wind_speed.max() - ds_tmp.radial_wind_speed.min()).data
+                    / float(confDict["SYSTEM_WAVELENGTH"])
+                ).astype("f4"),
                 {
                     "long_name": "nyquist frequency",
                     "comments": "half of the detector sampling frequency; detector bandwidth",
@@ -378,13 +290,9 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
             ),
             "nqv": (
                 [],
-                (
-                    np.float32(mheader["Gate length (pts)"])
-                    / tgint
-                    / 2
-                    * np.float32(confDict["SYSTEM_WAVELENGTH"])
-                    / 2
-                ).astype("f4"),
+                ((ds_tmp.radial_wind_speed.max() - ds_tmp.radial_wind_speed.min()).data / 2).astype(
+                    "f4"
+                ),
                 {
                     "long_name": "nyquist velocity",
                     "comments": "nq_freq*lambda/2; signal bandwidth",
@@ -392,7 +300,7 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
             ),
             "smplf": (
                 [],
-                np.float32(mheader["Gate length (pts)"]) / tgint,
+                np.float32(confDict["NUMBER_OF_GATE_POINTS"]) / tgint,
                 {
                     "long_name": "sampling frequency",
                     "units": "s-1",
@@ -402,7 +310,9 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
             "resf": (
                 [],
                 (
-                    np.float32(mheader["Gate length (pts)"]) / tgint / float(confDict["FFT_POINTS"])
+                    np.float32(confDict["NUMBER_OF_GATE_POINTS"])
+                    / tgint
+                    / float(confDict["FFT_POINTS"])
                 ).astype("f4"),
                 {
                     "long_name": "frequency resolution",
@@ -428,9 +338,11 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
         coords={
             "time": (
                 ["time"],
-                time_ds,
+                ds_tmp.time.data,
                 {
-                    "units": "seconds since 1970-01-01 00:00:00",
+                    "units": "seconds since {}".format(
+                        pd.to_datetime(time_reference).strftime("%Y-%m-%d %H:%M:%S")
+                    ),
                     "standard_name": "time",
                     "long_name": "Time",
                     "calendar": "gregorian",
@@ -439,7 +351,7 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
             ),
             "range": (
                 ["range"],
-                range_mid.astype("f4"),
+                ds_tmp.range.data.astype("f4"),
                 {
                     "units": "m",
                     "long_name": "line of sight distance towards the center of each range gate",
@@ -450,3 +362,4 @@ def read_byte_content(file_content: bytes, confDict: dict[str, str]) -> xr.Datas
             "nv": (["nv"], np.arange(0, 2).astype(np.int8)),
         },
     )
+
