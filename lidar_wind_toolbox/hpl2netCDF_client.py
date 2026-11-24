@@ -154,7 +154,7 @@ class hpl2netCDFClient(object):
         print(date_chosen)
         confDict = config.gen_confDict(url=self.config_dir)
         hpl_list = hpl_files.make_file_list(date_chosen, confDict, url=confDict["PROC_PATH"])
-        if not hpl_list.name:
+        if not hpl_list.file_paths:
             print("no files found")
         else:
             print("combining files to daily lvl1...")
@@ -171,18 +171,18 @@ class hpl2netCDFClient(object):
             confDict,
             url=confDict["PROC_PATH"],
         )
-        namelist = hpl_list.name
+        namelist = hpl_list.file_paths
         timelist = hpl_list.time
 
         if len(hpl_listm1.time) > 0:
             if date_chosen - hpl_listm1.time[-1] <= datetime.timedelta(minutes=30):
-                namelist = [hpl_listm1.name[-1]] + namelist
+                namelist = [hpl_listm1.file_paths[-1]] + namelist
                 timelist = np.array([hpl_listm1.time[-1]] + list(timelist))
                 print("adding last file of previous day before")
 
         if len(hpl_listp1.time) > 0:
             if hpl_listp1.time[0] - date_chosen <= datetime.timedelta(days=1, minutes=30):
-                namelist = namelist + [hpl_listp1.name[0]]
+                namelist = namelist + [hpl_listp1.file_paths[0]]
                 timelist = np.array(list(timelist) + [hpl_listp1.time[0]])
                 print("adding first file of following day after")
 
@@ -214,7 +214,7 @@ class hpl2netCDFClient(object):
         files_hpl = hpl_files.filelist_to_hpl_files(filelist, confDict["SYSTEM"], infile_prefix)
 
         ds_tmp = combine_lvl1_to_ds(
-            [path.read_bytes() for path in files_hpl.name],
+            [path.read_bytes() for path in files_hpl.file_paths],
             confDict,
             None,
             None,
@@ -625,15 +625,15 @@ class hpl2netCDFClient(object):
 
         # get daily file list
         hpl_list = hpl_files.make_file_list(date_chosen, confDict, url=confDict["PROC_PATH"])
-        if not hpl_list.name:
+        if not hpl_list.file_paths:
             print("no files found")
         else:
             print("combining files to daily lvl1...")
             print(" ...")
         # reduce to time window of interest
-        namelist = list(
+        file_paths = list(
             map(
-                hpl_list.name.__getitem__,
+                hpl_list.file_paths.__getitem__,
                 np.where(
                     (np.array(hpl_list.time) >= start.replace(tzinfo=None))
                     & (np.array(hpl_list.time) <= end.replace(tzinfo=None))
@@ -658,7 +658,7 @@ class hpl2netCDFClient(object):
             )
             if len(hpl_listm1.time) > 0:
                 if date_chosen - hpl_listm1.time[-1] <= datetime.timedelta(minutes=33):
-                    namelist = [hpl_listm1.name[-1]] + namelist
+                    file_paths = [hpl_listm1.file_paths[-1]] + file_paths
                     timelist = [hpl_listm1.time[-1]] + timelist
                     print("adding last file of previous day before")
         if time_chosen.hour >= 23:
@@ -670,13 +670,13 @@ class hpl2netCDFClient(object):
             )
             if len(hpl_listp1.time) > 0:
                 if hpl_listp1.time[0] - date_chosen <= datetime.timedelta(days=1, minutes=33):
-                    namelist = namelist + [hpl_listp1.name[0]]
+                    file_paths = file_paths + [hpl_listp1.file_paths[0]]
                     timelist = timelist + [hpl_listp1.time[0]]
                     print("adding first file of following day after")
         # reduce "again" to time window of interest
-        namelist = list(
+        file_paths = list(
             map(
-                namelist.__getitem__,
+                file_paths.__getitem__,
                 np.where(
                     (np.array(timelist) >= start.replace(tzinfo=None))
                     & (np.array(timelist) <= end.replace(tzinfo=None))
@@ -693,9 +693,9 @@ class hpl2netCDFClient(object):
             )
         )
 
-        print(namelist, timelist)
+        print(file_paths, timelist)
         # finalize hpl_list object
-        hpl_list = hpl_files(namelist, timelist)
+        hpl_list = hpl_files(file_paths, timelist)
         # combine l1 files to single file
         nc_name = hpl_files.combine_lvl1(hpl_list, confDict, date_chosen, time_chosen)
         print(nc_name)

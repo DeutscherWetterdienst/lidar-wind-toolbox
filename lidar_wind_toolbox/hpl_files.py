@@ -6,20 +6,17 @@ import re
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
-import xarray as xr
+
 from lidar_wind_toolbox.domain.merging.level_1 import combine_lvl1_to_ds
-
-
 from lidar_wind_toolbox.readers.file_discovery import try_date
 
 
 class hpl_files(object):
-    name = []
+    file_paths = []
     time = []
 
     def __init__(self, name, time):
-        self.name = name
+        self.file_paths = name
         self.time = time
 
     @staticmethod
@@ -116,25 +113,6 @@ class hpl_files(object):
         return hpl_files(files_sorted, np.sort(file_time))
 
     @staticmethod
-    def range_calc(rg_vec, confDict: dict[str, str]):
-        """Calculate range bounds, also accounting for overlapping gates. If your hpl-files contain overlapping gates please add the "OVERLAPPING_GATES" argument to the configuration file."""
-        if "OVERLAPPING_GATES" in confDict:
-            r = lambda x, idx: (
-                (
-                    x
-                    / (1, float(confDict["NUMBER_OF_GATE_POINTS"]))[
-                        int(confDict["OVERLAPPING_GATES"])
-                    ]
-                    + idx
-                )
-                * float(confDict["RANGE_GATE_LENGTH"])
-            )
-        else:
-            r = lambda x, idx: (x + idx) * float(confDict["RANGE_GATE_LENGTH"])
-
-        return r(rg_vec, 0.5).astype("f4")
-
-    @staticmethod
     def combine_lvl1(
         hpl_list: "hpl_files",
         confDict: dict[str, str],
@@ -145,7 +123,7 @@ class hpl_files(object):
         print(time_chosen)
 
         ds = combine_lvl1_to_ds(
-            [path.read_bytes() for path in hpl_list.name],
+            [path.read_bytes() for path in hpl_list.file_paths],
             confDict,
             None,
             None,

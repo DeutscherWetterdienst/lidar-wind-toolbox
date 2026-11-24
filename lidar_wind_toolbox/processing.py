@@ -45,7 +45,7 @@ def read_windcube_scan_files(
     )
 
     return combine_lvl1_to_ds(
-        [path.read_bytes() for path in files_hpl.name],
+        [path.read_bytes() for path in files_hpl.file_paths],
         confDict,
         None,
         None,
