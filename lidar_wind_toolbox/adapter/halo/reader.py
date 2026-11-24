@@ -5,6 +5,10 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from lidar_wind_toolbox.adapter.common import (
+    NormalizedRadialData,
+    build_normalized_radial_dataset,
+)
 from lidar_wind_toolbox.domain.constants import SPEED_OF_LIGHT
 from lidar_wind_toolbox.hpl_files import hpl_files
 from lidar_wind_toolbox.retrieval.uncertainty import calc_sigma_single
@@ -163,291 +167,46 @@ def read_halo(file_content: bytes, confDict: dict[str, str]) -> xr.Dataset:
         1.316,
     )
 
-    return xr.Dataset(
-        {
-            "dv": (
-                ["time", "range"],
-                mdata["velocity"],
-                {
-                    "units": "m s-1",
-                    "long_name": "radial velocity of scatterers away from instrument",
-                    "standard_name": "doppler_velocity",
-                    "comments": "A velocity is a vector quantity; the component of the velocity of the scatterers along the line of sight of the instrument where positive implies movement away from the instrument",
-                    "_FillValue": -999.0,
-                    "_CoordinateAxes": "time range",
-                },
-            ),
-            "errdv": (
-                ["time", "range"],
-                sigma_tmp.astype("f4"),
-                {
-                    "units": "m s-1",
-                    "long_name": "error of Doppler velocity",
-                    "standard_name": "doppler_velocity_error",
-                    "comments": "error of radial velocity calculated from Cramer-Rao lower bound (CRLB)",
-                    "_FillValue": -999.0,
-                    "_CoordinateAxes": "time range",
-                },
-            ),
-            "intensity": (
-                ["time", "range"],
-                mdata["snrp1"],
-                {
-                    "units": "1",
-                    "long_name": "backscatter intensity: b_int = snr+1, where snr denotes the signal-to-noise-ratio",
-                    "standard_name": "backscatter_intensity",
-                    "comments": "backscatter intensity: b_int = snr+1",
-                    "_FillValue": -999.0,
-                    "_CoordinateAxes": "time range",
-                },
-            ),
-            "beta": (
-                ["time", "range"],
-                mdata["beta"],
-                {
-                    "units": "m-1 sr-1",
-                    "long_name": "attenuated backscatter coefficient",
-                    "standard_name": "volume_attenuated_backwards_scattering_function_in_air",
-                    "comments": "determined from SNR by means of lidar equation; uncalibrated and uncorrected",
-                    "_FillValue": -999.0,
-                    "_CoordinateAxes": "time range",
-                },
-            ),
-            "delv": (
-                ["time", "range"],
-                mdata["dels"],
-                {
-                    "units": "m s-1",
-                    "long_name": "spectral width of detected signal",
-                    "standard_name": "spectral_width",
-                    "comments": "currently not part of the standard data product",
-                    "_FillValue": -999.0,
-                    "_CoordinateAxes": "time range",
-                },
-            ),
-            "azi": (
-                "time",
-                mbeam["azimuth"],
-                {
-                    "units": "degree",
-                    "long_name": "sensor azimuth due reference point",
-                    "standard_name": "sensor_azimuth_angle",
-                    "_CoordinateAxes": "time",
-                    "comments": 'sensor_azimuth_angle is the horizontal angle between the line of sight from the observation point to the sensor and a reference direction at the observation point, which is often due north. The angle is measured clockwise positive, starting from the reference direction. A comment attribute should be added to a data variable with this standard name to specify the reference direction. A standard name also exists for platform_azimuth_angle, where "platform" refers to the vehicle from which observations are made e.g. aeroplane, ship, or satellite. For some viewing geometries the sensor and the platform cannot be assumed to be close enough to neglect the difference in calculated azimuth angle.',
-                },
-            ),
-            #                         , 'ele': ('time'
-            #                                  , mbeam['elevation']
-            #                                  , {'units' : 'degree'
-            #                                    ,'long_name' : 'beam direction due elevation'
-            #                                    ,'standard_name' : 'elevation_angle'
-            #                                    ,'comments' : 'elevation angle of the beam to local horizone; a value of 90 is directly overhead'
-            #                                    }
-            #                                   )
-            "zenith": (
-                "time",
-                90 - mbeam["elevation"],
-                {
-                    "units": "degree",
-                    "long_name": "beam direction due zenith",
-                    "standard_name": "zenith_angle",
-                    "_CoordinateAxes": "time",
-                    "comments": "zenith angle of the beam to the local vertical; a value of zero is directly overhead",
-                },
-            ),
-            "lat": (
-                [],
-                np.float32(confDict["SYSTEM_LATITUDE"]),
-                {
-                    "units": "degrees_north",
-                    "long_name": "latitude",
-                    "standard_name": "latitude",
-                    "comments": "latitude of sensor",
-                    "_FillValue": -999.0,
-                },
-            ),
-            "lon": (
-                [],
-                np.float32(confDict["SYSTEM_LONGITUDE"]),
-                {
-                    "units": "degrees_east",
-                    "long_name": "longitude",
-                    "standard_name": "longitude",
-                    "comments": "longitude of sensor",
-                    "_FillValue": -999.0,
-                },
-            ),
-            "zsl": (
-                [],
-                np.float32(confDict["SYSTEM_ALTITUDE"]),
-                {
-                    "units": "m",
-                    "comments": "system altitude above mean sea level",
-                    "standard_name": "altitude",
-                    "_FillValue": -999.0,
-                },
-            ),
-            "wl": (
-                [],
-                np.float32(confDict["SYSTEM_WAVELENGTH"]),
-                {
-                    "units": "m",
-                    "long_name": "laser center wavelength",
-                    "standard_name": "radiation_wavelength",
-                    "_FillValue": -999.0,
-                },
-            ),
-            "pd": (
-                [],
-                np.float32(confDict["PULS_DURATION"]),
-                {
-                    "units": "seconds",
-                    "long_name": "laser duration",
-                    "comments": "duration of the transmitted pulse pd = 2 dr / c",
-                    "_FillValue": -999.0,
-                },
-            ),
-            "nfft": (
-                [],
-                np.float32(confDict["FFT_POINTS"]),
-                {
-                    "units": "1",
-                    "long_name": "number of fft points",
-                    "comments": "according to the manufacturer",
-                    "_FillValue": -999.0,
-                },
-            ),
-            #                         , 'id': ([]
-            #                                 , confDict['SYSTEM_ID']
-            #                                 , {'long_name': 'system identification number'}
-            #                                 )
-            "nrg": (
-                [],
-                np.float32(mheader["Number of gates"]),
-                {
-                    "long_name": "total number of range gates per ray",
-                    "units": "1",
-                    "_FillValue": -999.0,
-                },
-            ),
-            "lrg": (
-                [],
-                np.float32(mheader["Range gate length (m)"]),
-                {"units": "m", "long_name": "range gate length", "_FillValue": -999.0},
-            ),
-            "nsmpl": (
-                [],
-                np.float32(mheader["Gate length (pts)"]),
-                {"long_name": "points per range gate", "units": "1"},
-            ),
-            "prf": (
-                [],
-                np.float32(confDict["PULS_REPETITION_FREQ"]),
-                {
-                    "units": "s-1",
-                    "long_name": "pulse repetition frequency",
-                    "_FillValue": -999.0,
-                },
-            ),
-            "npls": (
-                [],
-                np.float32(confDict["PULSES_PER_DIRECTION"]),
-                {"long_name": "number of pulses per ray", "units": "1", "_FillValue": -999.0},
-            ),
-            "focus": (
-                [],
-                np.float32(mheader["Focus range"]),
-                {"units": "m", "long_name": "telescope focus length", "_FillValue": -999.0},
-            ),
-            "resv": (
-                [],
-                np.float32(mheader["Resolution (m/s)"]),
-                {
-                    "units": "m s-1",
-                    "long_name": "resolution of Doppler velocity",
-                    "_FillValue": -999.0,
-                },
-            ),
-            "nqf": (
-                [],
-                (np.float32(mheader["Gate length (pts)"]) / tgint / 2).astype("f4"),
-                {
-                    "long_name": "nyquist frequency",
-                    "comments": "half of the detector sampling frequency; detector bandwidth",
-                },
-            ),
-            "nqv": (
-                [],
-                (
-                    np.float32(mheader["Gate length (pts)"])
-                    / tgint
-                    / 2
-                    * np.float32(confDict["SYSTEM_WAVELENGTH"])
-                    / 2
-                ).astype("f4"),
-                {
-                    "long_name": "nyquist velocity",
-                    "comments": "nq_freq*lambda/2; signal bandwidth",
-                },
-            ),
-            "smplf": (
-                [],
-                np.float32(mheader["Gate length (pts)"]) / tgint,
-                {
-                    "long_name": "sampling frequency",
-                    "units": "s-1",
-                    "comments": "nsmpl / tgint",
-                },
-            ),
-            "resf": (
-                [],
-                (
-                    np.float32(mheader["Gate length (pts)"]) / tgint / float(confDict["FFT_POINTS"])
-                ).astype("f4"),
-                {
-                    "long_name": "frequency resolution",
-                    "units": "s-1",
-                    "comments": "smplf / nfft",
-                },
-            ),
-            "tgint": (
-                [],
-                tgint,
-                {
-                    "long_name": "total observation time per range gate",
-                    "units": "s",
-                    "comments": "time window used for time gating the time series of the signal received on the detector: tgint = (2 X) / c, with X = range_bnds[range,1] - range_bnds[range,0]",
-                },
-            ),
-            "range_bnds": (
-                ["range", "nv"],
-                range_bnds.astype("f4"),
-                {"units": "m", "_FillValue": -999.0},
-            ),
-        },
-        coords={
-            "time": (
-                ["time"],
-                time_ds,
-                {
-                    "units": "seconds since 1970-01-01 00:00:00",
-                    "standard_name": "time",
-                    "long_name": "Time",
-                    "calendar": "gregorian",
-                    "_CoordinateAxisType": "time",
-                },
-            ),
-            "range": (
-                ["range"],
-                range_mid.astype("f4"),
-                {
-                    "units": "m",
-                    "long_name": "line of sight distance towards the center of each range gate",
-                    "_FillValue": -999.0,
-                    "_CoordinateAxisType": "range",
-                },
-            ),
-            "nv": (["nv"], np.arange(0, 2).astype(np.int8)),
-        },
+    return build_normalized_radial_dataset(
+        NormalizedRadialData(
+            dv=mdata["velocity"],
+            errdv=sigma_tmp.astype("f4"),
+            intensity=mdata["snrp1"],
+            beta=mdata["beta"],
+            delv=mdata["dels"],
+            azi=mbeam["azimuth"],
+            zenith=90 - mbeam["elevation"],
+            time=np.asarray(time_ds),
+            time_units="seconds since 1970-01-01 00:00:00",
+            range=range_mid.astype("f4"),
+            range_bnds=range_bnds.astype("f4"),
+            lat=np.float32(confDict["SYSTEM_LATITUDE"]),
+            lon=np.float32(confDict["SYSTEM_LONGITUDE"]),
+            zsl=np.float32(confDict["SYSTEM_ALTITUDE"]),
+            wl=np.float32(confDict["SYSTEM_WAVELENGTH"]),
+            pd=np.float32(confDict["PULS_DURATION"]),
+            nfft=np.float32(confDict["FFT_POINTS"]),
+            nrg=np.float32(mheader["Number of gates"]),
+            lrg=np.float32(mheader["Range gate length (m)"]),
+            nsmpl=np.float32(mheader["Gate length (pts)"]),
+            prf=np.float32(confDict["PULS_REPETITION_FREQ"]),
+            npls=np.float32(confDict["PULSES_PER_DIRECTION"]),
+            focus=np.float32(mheader["Focus range"]),
+            resv=np.float32(mheader["Resolution (m/s)"]),
+            nqf=(np.float32(mheader["Gate length (pts)"]) / tgint / 2).astype("f4"),
+            nqv=(
+                np.float32(mheader["Gate length (pts)"])
+                / tgint
+                / 2
+                * np.float32(confDict["SYSTEM_WAVELENGTH"])
+                / 2
+            ).astype("f4"),
+            smplf=np.float32(mheader["Gate length (pts)"]) / tgint,
+            resf=(
+                np.float32(mheader["Gate length (pts)"])
+                / tgint
+                / float(confDict["FFT_POINTS"])
+            ).astype("f4"),
+            tgint=tgint,
+        )
     )
-
