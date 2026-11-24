@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lidar Wind Toolbox · Command-line data flow</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5e687a;
+      --line: #cbd4e1;
+      --paper: #f7f9fc;
+      --white: #fff;
+      --cli: #dbeafe;
+      --io: #ede9fe;
+      --adapter: #ffedd5;
+      --level1: #dcfce7;
+      --level2: #fee2e2;
+      --output: #e5e7eb;
+      --accent: #3157a6;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 15px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { max-width: 1500px; margin: 0 auto; padding: 36px 28px 64px; }
+    h1, h2, h3 { line-height: 1.2; }
+    h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 46px); letter-spacing: -0.03em; }
+    h2 { margin: 36px 0 14px; font-size: 24px; }
+    h3 { margin: 0 0 8px; font-size: 16px; }
+    p { max-width: 78ch; }
+    .lede { color: var(--muted); font-size: 17px; max-width: 76ch; }
+    .note {
+      border-left: 4px solid var(--accent);
+      background: var(--white);
+      padding: 12px 16px;
+      border-radius: 8px;
+      box-shadow: 0 4px 18px #1720330d;
+    }
+    .diagram-wrap {
+      margin-top: 28px;
+      overflow-x: auto;
+      padding: 4px 4px 12px;
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 8px 28px #17203312;
+    }
+    svg { display: block; min-width: 1200px; width: 100%; height: auto; }
+    .lane { stroke: var(--line); stroke-width: 1; rx: 12; }
+    .lane-title { font-size: 16px; font-weight: 700; fill: var(--ink); }
+    .box { stroke: #738096; stroke-width: 1.2; rx: 9; }
+    .box-title { font-size: 14px; font-weight: 700; fill: var(--ink); }
+    .box-text { font-size: 12px; fill: var(--muted); }
+    .arrow { stroke: #596579; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+    .branch { stroke-dasharray: 6 5; }
+    .edge-label { font-size: 11px; font-weight: 600; fill: #596579; }
+    .data-pill { fill: #fff; stroke: #aeb9c9; stroke-width: 1; rx: 11; }
+    .pill-text { font-size: 11px; fill: #344054; }
+    code { font: 0.92em ui-monospace, SFMono-Regular, Menlo, monospace; background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    .legend, .cards, .commands { display: grid; gap: 14px; }
+    .legend { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-top: 18px; }
+    .legend-item { display: flex; gap: 8px; align-items: center; color: var(--muted); }
+    .swatch { width: 18px; height: 18px; border: 1px solid #aeb9c9; border-radius: 4px; }
+    .cards { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .card, details { background: var(--white); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+    .card p, details p { color: var(--muted); margin: 6px 0 0; }
+    .commands { grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); }
+    .command { background: var(--white); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+    .command code { color: var(--accent); background: #eef3ff; }
+    .command span { color: var(--muted); }
+    details { margin: 10px 0; }
+    summary { cursor: pointer; font-weight: 700; }
+    footer { margin-top: 36px; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Command-line data flow</h1>
+  <p class="lede">A current-implementation map of how <code>wind-lidar-process</code> turns command-line arguments and configured input files into Level-1, Level-2, quicklook, and stare products.</p>
+  <p class="note"><strong>How to read it:</strong> follow the solid arrows for the main path. Dashed arrows are command-specific branches. Rounded pills show the main data representation crossing a boundary.</p>
+
+  <div class="diagram-wrap" aria-label="Command line data flow diagram">
+    <svg viewBox="0 0 1450 1120" role="img" aria-labelledby="diagram-title diagram-desc">
+      <title id="diagram-title">Lidar Wind Toolbox command line data flow</title>
+      <desc id="diagram-desc">The command line runner dispatches into the legacy client, which reads configuration, discovers files, parses instrument bytes, combines Level 1 data, retrieves Level 2 data, and writes NetCDF or quicklook outputs.</desc>
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#596579" />
+        </marker>
+      </defs>
+
+      <!-- grouped functional lanes -->
+      <rect class="lane" x="20" y="20" width="1410" height="130" fill="var(--cli)" />
+      <text class="lane-title" x="42" y="50">1 · CLI input and dispatch</text>
+      <rect class="lane" x="20" y="170" width="1410" height="170" fill="var(--io)" />
+      <text class="lane-title" x="42" y="200">2 · Configuration and file discovery</text>
+      <rect class="lane" x="20" y="360" width="1410" height="300" fill="var(--adapter)" />
+      <text class="lane-title" x="42" y="390">3 · Instrument ingestion and Level-1 normalization</text>
+      <rect class="lane" x="20" y="680" width="1410" height="180" fill="var(--level1)" />
+      <text class="lane-title" x="42" y="710">4 · Level-1 merge and persistence</text>
+      <rect class="lane" x="20" y="880" width="1410" height="180" fill="var(--level2)" />
+      <text class="lane-title" x="42" y="910">5 · Level-2 retrieval, stare processing, and quicklooks</text>
+
+      <!-- lane 1 -->
+      <rect class="box" x="55" y="76" width="250" height="52" fill="var(--white)" />
+      <text class="box-title" x="72" y="98">wind-lidar-process</text>
+      <text class="box-text" x="72" y="117">--url · --date · --cmd</text>
+      <rect class="box" x="390" y="76" width="290" height="52" fill="var(--white)" />
+      <text class="box-title" x="407" y="98">command_line.main</text>
+      <text class="box-text" x="407" y="117">valid_date → hpl2netCDFClient</text>
+      <rect class="box" x="770" y="76" width="320" height="52" fill="var(--white)" />
+      <text class="box-title" x="787" y="98">hpl2netCDFClient</text>
+      <text class="box-text" x="787" y="117">legacy orchestration boundary</text>
+      <path class="arrow" d="M305 102 H390" /><text class="edge-label" x="322" y="94">arguments</text>
+      <path class="arrow" d="M680 102 H770" /><text class="edge-label" x="696" y="94">cmd + date</text>
+
+      <!-- lane 2 -->
+      <rect class="box" x="55" y="225" width="260" height="70" fill="var(--white)" />
+      <text class="box-title" x="72" y="249">config.gen_confDict</text>
+      <text class="box-text" x="72" y="269">configuration file → configDict</text>
+      <rect class="box" x="390" y="225" width="285" height="70" fill="var(--white)" />
+      <text class="box-title" x="407" y="249">hpl_files.make_file_list</text>
+      <text class="box-text" x="407" y="269">date tree + instrument glob</text>
+      <rect class="box" x="750" y="225" width="300" height="70" fill="var(--white)" />
+      <text class="box-title" x="767" y="249">filelist_to_hpl_files</text>
+      <text class="box-text" x="767" y="269">deduplicate + parse timestamps + sort</text>
+      <rect class="box" x="1125" y="225" width="250" height="70" fill="var(--white)" />
+      <text class="box-title" x="1142" y="249">adjacent-day expansion</text>
+      <text class="box-text" x="1142" y="269">daily boundary files</text>
+      <path class="arrow" d="M905 128 V225 H185" /><text class="edge-label" x="495" y="218">configuration request</text>
+      <path class="arrow" d="M315 260 H390" /><text class="edge-label" x="326" y="251">configDict</text>
+      <path class="arrow" d="M675 260 H750" /><text class="edge-label" x="686" y="251">Path list</text>
+      <path class="arrow" d="M1050 260 H1125" /><text class="edge-label" x="1061" y="251">sorted files</text>
+
+      <!-- lane 3 -->
+      <rect class="box" x="55" y="430" width="245" height="70" fill="var(--white)" />
+      <text class="box-title" x="72" y="454">Path.read_bytes()</text>
+      <text class="box-text" x="72" y="474">filesystem → bytes</text>
+      <rect class="box" x="365" y="415" width="300" height="100" fill="#fff7ed" />
+      <text class="box-title" x="382" y="440">Halo adapter</text>
+      <text class="box-text" x="382" y="461">read_halo(bytes, config)</text>
+      <text class="box-text" x="382" y="480">HPL text parsing + calculations</text>
+      <text class="box-text" x="382" y="499">→ NormalizedRadialData</text>
+      <rect class="box" x="735" y="415" width="300" height="100" fill="#fff7ed" />
+      <text class="box-title" x="752" y="440">WindCube adapter</text>
+      <text class="box-text" x="752" y="461">read_wcsradial(bytes, config)</text>
+      <text class="box-text" x="752" y="480">CF-Radial parsing + calculations</text>
+      <text class="box-text" x="752" y="499">→ NormalizedRadialData</text>
+      <rect class="box" x="1105" y="415" width="270" height="100" fill="#fff7ed" />
+      <text class="box-title" x="1122" y="440">WindCube native scan</text>
+      <text class="box-text" x="1122" y="461">read_wc_type(bytes)</text>
+      <text class="box-text" x="1122" y="480">native radial_wind_speed/cnr</text>
+      <text class="box-text" x="1122" y="499">separate native branch</text>
+      <rect class="data-pill" x="445" y="545" width="190" height="30" /><text class="pill-text" x="462" y="565">NormalizedRadialData</text>
+      <rect class="data-pill" x="815" y="545" width="190" height="30" /><text class="pill-text" x="832" y="565">NormalizedRadialData</text>
+      <rect class="data-pill" x="1150" y="545" width="180" height="30" /><text class="pill-text" x="1167" y="565">native xarray.Dataset</text>
+      <path class="arrow" d="M215 295 V430" /><text class="edge-label" x="228" y="382">file paths</text>
+      <path class="arrow branch" d="M300 465 H365" /><path class="arrow branch" d="M300 465 H735" /><path class="arrow branch" d="M300 465 H1105" />
+      <path class="arrow" d="M515 515 V545" /><path class="arrow" d="M885 515 V545" /><path class="arrow" d="M1240 515 V545" />
+
+      <!-- lane 4 -->
+      <rect class="box" x="110" y="755" width="330" height="70" fill="var(--white)" />
+      <text class="box-title" x="127" y="779">combine_lvl1_to_ds</text>
+      <text class="box-text" x="127" y="799">concat · derive · filter · metadata</text>
+      <rect class="box" x="575" y="755" width="300" height="70" fill="var(--white)" />
+      <text class="box-title" x="592" y="779">build normalized Dataset</text>
+      <text class="box-text" x="592" y="799">xarray Dataset, Level-1 schema</text>
+      <rect class="box" x="1005" y="755" width="300" height="70" fill="var(--white)" />
+      <text class="box-title" x="1022" y="779">hpl_files.combine_lvl1</text>
+      <text class="box-text" x="1022" y="799">compression + NetCDF write</text>
+      <path class="arrow" d="M540 560 V720 H275 V755" /><path class="arrow" d="M980 560 V720 H275 V755" /><path class="arrow" d="M1310 575 V720 H275 V755" />
+      <text class="edge-label" x="287" y="709">normalized/native inputs</text>
+      <path class="arrow" d="M440 790 H575" /><text class="edge-label" x="465" y="782">merged Level-1</text>
+      <path class="arrow" d="M875 790 H1005" /><text class="edge-label" x="901" y="782">dataset</text>
+      <rect class="data-pill" x="640" y="815" width="180" height="28" /><text class="pill-text" x="656" y="834">Level-1 xarray.Dataset</text>
+
+      <!-- lane 5 -->
+      <rect class="box" x="55" y="945" width="235" height="70" fill="var(--white)" />
+      <text class="box-title" x="72" y="969">process_dataset</text>
+      <text class="box-text" x="72" y="989">system + scan-type dispatch</text>
+      <rect class="box" x="355" y="930" width="260" height="100" fill="#fff7f7" />
+      <text class="box-title" x="372" y="955">Halo retrieval</text>
+      <text class="box-text" x="372" y="976">standard / experimental VAD</text>
+      <text class="box-text" x="372" y="995">or stare workflow</text>
+      <rect class="box" x="680" y="930" width="260" height="100" fill="#fff7f7" />
+      <text class="box-title" x="697" y="955">WindCube retrieval</text>
+      <text class="box-text" x="697" y="976">DBS/VAD / experimental</text>
+      <text class="box-text" x="697" y="995">fixed/stare special cases</text>
+      <rect class="box" x="1005" y="930" width="300" height="100" fill="var(--output)" />
+      <text class="box-title" x="1022" y="955">Outputs and quicklooks</text>
+      <text class="box-text" x="1022" y="976">Level-2 NetCDF · backscatter QL</text>
+      <text class="box-text" x="1022" y="995">stare L2 · stare QLs · NRT cleanup</text>
+      <path class="arrow" d="M740 825 V885 H170 V945" /><text class="edge-label" x="300" y="875">Level-1 Dataset</text>
+      <path class="arrow" d="M290 980 H355" /><path class="arrow branch" d="M290 980 H680" /><path class="arrow branch" d="M290 980 H1005" />
+      <path class="arrow" d="M615 980 H1005" /><path class="arrow" d="M940 980 H1005" />
+      <rect class="data-pill" x="1100" y="1030" width="150" height="28" /><text class="pill-text" x="1121" y="1049">NetCDF / PNG</text>
+    </svg>
+  </div>
+
+  <div class="legend" aria-label="Diagram legend">
+    <div class="legend-item"><span class="swatch" style="background:var(--cli)"></span>CLI and dispatch</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--io)"></span>Configuration and files</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--adapter)"></span>Instrument adapters</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--level1)"></span>Level-1 processing</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--level2)"></span>Retrieval and outputs</div>
+  </div>
+
+  <h2>Supported commands</h2>
+  <div class="commands">
+    <div class="command"><code>hpl_l1</code> <span>raw files → Level-1 merge → Level-1 NetCDF</span></div>
+    <div class="command"><code>l1_l2</code> <span>existing Level-1 → Level-2 retrieval → Level-2 NetCDF</span></div>
+    <div class="command"><code>hpl_l1_l2</code> <span>raw files → Level-1 → Level-2</span></div>
+    <div class="command"><code>hpl_l1_l2wql</code> <span>raw files → Level-1 → Level-2 → quicklooks</span></div>
+    <div class="command"><code>l1_l2wql</code> <span>existing Level-1 → Level-2 → quicklooks</span></div>
+    <div class="command"><code>l1wql</code> <span>existing Level-1 → backscatter quicklook</span></div>
+    <div class="command"><code>l2wql</code> <span>existing Level-2 → Level-2 quicklooks</span></div>
+    <div class="command"><code>hpl_l1_l2nrt</code> <span>NRT Level-1 → NRT Level-2</span></div>
+    <div class="command"><code>hpl_l2nrt</code> <span>NRT Level-1 → NRT Level-2 → remove temporary Level-1</span></div>
+    <div class="command"><code>l1_stare_l2</code> <span>stare Level-1 + wind Level-2 → stare Level-2</span></div>
+    <div class="command"><code>l1_stare_l2wql</code> <span>stare Level-2 → stare quicklooks</span></div>
+    <div class="command"><code>starewql</code> <span>existing stare Level-2 → stare quicklooks</span></div>
+  </div>
+
+  <h2>Important boundaries</h2>
+  <details open>
+    <summary>Filesystem and content handling</summary>
+    <p><code>hpl_files</code> discovers and sorts paths. The legacy boundary then reads each path into <code>bytes</code>. Halo and WindCube adapters parse those bytes; they do not own directory discovery.</p>
+  </details>
+  <details>
+    <summary>Normalized versus native WindCube data</summary>
+    <p>Halo and WindCube radial inputs become <code>NormalizedRadialData</code> and are rebuilt into the normalized Level-1 schema. The regular WindCube native scan branch returns native variables and follows a separate normalization path.</p>
+  </details>
+  <details>
+    <summary>Daily and NRT processing</summary>
+    <p>Daily processing expands the discovered file list with nearby files from the previous and following date boundaries. NRT processing uses a time window and may remove the temporary Level-1 product after Level-2 processing.</p>
+  </details>
+  <details>
+    <summary>Stare workflow</summary>
+    <p>The stare commands combine stare Level-1 data with a wind Level-2 product, then write stare Level-2 output and optional epsilon, atmospheric-variance, and wind-mean quicklooks.</p>
+  </details>
+
+  <footer>Generated as repository documentation. The flow reflects <code>command_line.py</code>, <code>hpl2netCDF_client.py</code>, <code>hpl_files.py</code>, the instrument adapters, <code>domain/merging/level_1.py</code>, and the retrieval/quicklook modules.</footer>
+</main>
+</body>
+</html>
