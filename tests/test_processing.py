@@ -140,7 +140,7 @@ def test_read_windcube_scan_files_uses_explicit_reader_settings(
             return b"dummy"
 
     class DummyFiles:
-        name: list[DummyPath] = [DummyPath()]
+        file_paths: list[DummyPath] = [DummyPath()]
         pass
 
     expected_dataset = native_windcube_level1_dataset()
