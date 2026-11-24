@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lidar Wind Toolbox · Code structure and DDD</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d687a;
+      --line: #cbd4e1;
+      --paper: #f7f9fc;
+      --white: #fff;
+      --public: #dbeafe;
+      --app: #ede9fe;
+      --domain: #dcfce7;
+      --adapter: #ffedd5;
+      --infra: #e5e7eb;
+      --risk: #fee2e2;
+      --accent: #3157a6;
+      --good: #16734b;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--paper); font: 15px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { max-width: 1520px; margin: 0 auto; padding: 36px 28px 64px; }
+    h1, h2, h3 { line-height: 1.2; }
+    h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 48px); letter-spacing: -0.035em; }
+    h2 { margin: 42px 0 14px; font-size: 25px; }
+    h3 { margin: 0 0 8px; font-size: 16px; }
+    p { max-width: 82ch; }
+    .lede { color: var(--muted); font-size: 17px; max-width: 80ch; }
+    .note { border-left: 4px solid var(--accent); background: var(--white); padding: 12px 16px; border-radius: 8px; box-shadow: 0 4px 18px #1720330d; }
+    .diagram { overflow-x: auto; background: var(--white); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 28px #17203312; padding: 4px; }
+    svg { display: block; min-width: 1180px; width: 100%; height: auto; }
+    .lane { stroke: var(--line); stroke-width: 1; rx: 12; }
+    .lane-title { font-size: 16px; font-weight: 700; fill: var(--ink); }
+    .box { stroke: #738096; stroke-width: 1.15; rx: 9; }
+    .box-title { font-size: 13px; font-weight: 700; fill: var(--ink); }
+    .box-text { font-size: 11px; fill: var(--muted); }
+    .arrow { stroke: #596579; stroke-width: 1.7; fill: none; marker-end: url(#arrow); }
+    .dashed { stroke-dasharray: 6 5; }
+    .edge { font-size: 10px; font-weight: 600; fill: #596579; }
+    .pill { fill: #fff; stroke: #aeb9c9; stroke-width: 1; rx: 11; }
+    .pill-text { font-size: 10px; fill: #344054; }
+    .legend, .cards, .violations, .tests { display: grid; gap: 14px; }
+    .legend { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-top: 16px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+    .swatch { width: 18px; height: 18px; border: 1px solid #aeb9c9; border-radius: 4px; }
+    .cards { grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
+    .card, .violation, .test-card, details { background: var(--white); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+    .card p, .violation p, .test-card p, details p { margin: 6px 0 0; color: var(--muted); }
+    .violations { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .violation { border-top: 4px solid #cf5555; }
+    .violation strong { color: #9f3030; }
+    .tests { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .test-card { border-top: 4px solid var(--good); }
+    ul { margin: 8px 0 0; padding-left: 20px; }
+    li { margin: 4px 0; }
+    code { font: 0.91em ui-monospace, SFMono-Regular, Menlo, monospace; background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 18px 0; }
+    .flow span { background: var(--white); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; font-weight: 650; }
+    .flow b { color: var(--accent); font-size: 20px; }
+    details { margin: 10px 0; }
+    summary { cursor: pointer; font-weight: 700; }
+    footer { margin-top: 38px; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Code structure and domain-driven design</h1>
+  <p class="lede">This document describes how logic is currently reached from outside the package, where technical concerns leak into the domain, and one target structure for separating application workflows, domain calculations, and instrument/file adapters.</p>
+  <p class="note"><strong>Scope:</strong> the numerical retrieval core is represented as a domain black box here. The important question is which typed values enter it, which result leaves it, and where those conversions should be tested.</p>
+
+  <h2>1 · Current dependency and access structure</h2>
+  <p>The repository currently has two main external access styles and a legacy direct-dataset path. They converge around Level-1 datasets and <code>main_proc.process_dataset</code>, but they do not share one application boundary.</p>
+  <div class="diagram" aria-label="Current dependency structure diagram">
+    <svg viewBox="0 0 1450 840" role="img" aria-labelledby="current-title current-desc">
+      <title id="current-title">Current dependency and access structure</title>
+      <desc id="current-desc">CLI, typed API, and direct dataset paths converge on processing and retrieval, with parallel instrument and output branches.</desc>
+      <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#596579" /></marker></defs>
+      <rect class="lane" x="20" y="20" width="1410" height="150" fill="var(--public)" />
+      <text class="lane-title" x="42" y="49">External access and compatibility façades</text>
+      <rect class="lane" x="20" y="190" width="1410" height="155" fill="var(--app)" />
+      <text class="lane-title" x="42" y="219">Application/orchestration and technical workflow</text>
+      <rect class="lane" x="20" y="365" width="1410" height="205" fill="var(--adapter)" />
+      <text class="lane-title" x="42" y="394">Input, conversion, and serialization adapters</text>
+      <rect class="lane" x="20" y="590" width="1410" height="220" fill="var(--domain)" />
+      <text class="lane-title" x="42" y="619">Domain models and calculation façade</text>
+
+      <rect class="box" x="55" y="78" width="240" height="58" fill="var(--white)" /><text class="box-title" x="72" y="101">CLI</text><text class="box-text" x="72" y="120">command_line.main</text>
+      <rect class="box" x="360" y="78" width="280" height="58" fill="var(--white)" /><text class="box-title" x="377" y="101">Legacy client</text><text class="box-text" x="377" y="120">hpl2netCDFClient</text>
+      <rect class="box" x="705" y="78" width="300" height="58" fill="var(--white)" /><text class="box-title" x="722" y="101">Typed package API</text><text class="box-text" x="722" y="120">lidar_wind_toolbox.__init__</text>
+      <rect class="box" x="1070" y="78" width="300" height="58" fill="var(--white)" /><text class="box-title" x="1087" y="101">Direct dataset callers</text><text class="box-text" x="1087" y="120">existing Level-1 / plotting paths</text>
+      <path class="arrow" d="M295 107 H360" /><path class="arrow" d="M640 107 H705" /><path class="arrow" d="M1005 107 H1070" />
+
+      <rect class="box" x="85" y="250" width="285" height="62" fill="var(--white)" /><text class="box-title" x="102" y="274">config + file discovery</text><text class="box-text" x="102" y="294">config.py · hpl_files.py</text>
+      <rect class="box" x="470" y="250" width="300" height="62" fill="var(--white)" /><text class="box-title" x="487" y="274">processing.py</text><text class="box-text" x="487" y="294">typed WindCube workflows</text>
+      <rect class="box" x="870" y="250" width="300" height="62" fill="var(--white)" /><text class="box-title" x="887" y="274">main_proc.py</text><text class="box-text" x="887" y="294">system/scan dispatch + metadata</text>
+      <rect class="box" x="1260" y="250" width="120" height="62" fill="var(--white)" /><text class="box-title" x="1277" y="274">stare</text><text class="box-text" x="1277" y="294">special path</text>
+      <path class="arrow" d="M500 136 V250 H228" /><path class="arrow" d="M850 136 V250 H620" /><path class="arrow" d="M1150 136 V250 H1020" /><path class="arrow dashed" d="M1280 136 V250 H1320" />
+
+      <rect class="box" x="55" y="430" width="260" height="72" fill="var(--white)" /><text class="box-title" x="72" y="454">File paths → bytes</text><text class="box-text" x="72" y="475">read_bytes · discovery</text>
+      <rect class="box" x="355" y="430" width="280" height="72" fill="#fff7ed" /><text class="box-title" x="372" y="454">Halo adapter</text><text class="box-text" x="372" y="475">HPL parsing + normalization</text>
+      <rect class="box" x="675" y="430" width="280" height="72" fill="#fff7ed" /><text class="box-title" x="692" y="454">WindCube adapters</text><text class="box-text" x="692" y="475">CF-Radial/native branches</text>
+      <rect class="box" x="995" y="430" width="280" height="72" fill="#fff7ed" /><text class="box-title" x="1012" y="454">xarray adapters</text><text class="box-text" x="1012" y="475">halo_scan · windcube_scan</text>
+      <rect class="box" x="1310" y="430" width="70" height="72" fill="var(--infra)" /><text class="box-title" x="1321" y="454">I/O</text><text class="box-text" x="1321" y="475">NetCDF</text>
+      <path class="arrow" d="M228 312 V430" /><path class="arrow" d="M620 312 V430 H495" /><path class="arrow" d="M1020 312 V430 H815" /><path class="arrow dashed" d="M1320 312 V430" />
+
+      <rect class="box" x="95" y="665" width="260" height="72" fill="var(--white)" /><text class="box-title" x="112" y="689">Normalized Level-1</text><text class="box-text" x="112" y="710">NormalizedRadialData / Dataset</text>
+      <rect class="box" x="430" y="665" width="285" height="72" fill="var(--white)" /><text class="box-title" x="447" y="689">domain.models</text><text class="box-text" x="447" y="710">LidarScan · parameters · result</text>
+      <rect class="box" x="790" y="665" width="285" height="72" fill="var(--white)" /><text class="box-title" x="807" y="689">domain.calculation</text><text class="box-text" x="807" y="710">retrieve_array · time grid</text>
+      <rect class="box" x="1150" y="665" width="225" height="72" fill="var(--white)" /><text class="box-title" x="1167" y="689">retrieval façade</text><text class="box-text" x="1167" y="710">standard · windcube · experimental</text>
+      <path class="arrow" d="M495 502 V665 H225" /><path class="arrow" d="M815 502 V665 H225" /><path class="arrow" d="M1135 502 V665 H572" /><path class="arrow dashed" d="M1345 502 V665 H1262" />
+      <path class="arrow" d="M355 701 H430" /><path class="arrow" d="M715 701 H790" /><path class="arrow" d="M1075 701 H1150" />
+      <text class="edge" x="372" y="692">LidarScan</text><text class="edge" x="733" y="692">typed inputs</text><text class="edge" x="1090" y="692">result adapter</text>
+    </svg>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:var(--public)"></span>Public/legacy access</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--app)"></span>Orchestration</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--adapter)"></span>Adapters/conversions</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--domain)"></span>Domain models/calculation</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--infra)"></span>Infrastructure/output</div>
+  </div>
+
+  <h3 style="margin-top:28px">Where the package is already independent</h3>
+  <div class="cards">
+    <article class="card"><h3><code>domain.models</code></h3><p>Mostly technology-independent NumPy/dataclass models: <code>LidarScan</code>, <code>RetrievalParameters</code>, <code>TimeGrid</code>, and <code>WindRetrievalResult</code>.</p></article>
+    <article class="card"><h3><code>domain.calculation</code></h3><p>Has a typed calculation entrypoint and does not receive paths, bytes, configuration files, or xarray datasets directly.</p></article>
+    <article class="card"><h3><code>processing.py</code></h3><p>Provides a newer typed API with <code>ProcessingContext</code>, although it still crosses the legacy merger and retrieval boundary.</p></article>
+    <article class="card"><h3>Adapters</h3><p>Halo/WindCube byte readers and xarray adapters provide recognizable conversion seams, but their responsibilities are still mixed.</p></article>
+  </div>
+
+  <h2>2 · DDD violations and remaining changes</h2>
+  <p>The main architectural problem is not that the calculation core is unavailable; it is that technical representations and application decisions still cross into the same modules as domain decisions.</p>
+  <div class="violations">
+    <article class="violation"><h3><strong>Orchestrators are too broad</strong></h3><p><code>hpl2netCDF_client.py</code> imports configuration, file discovery, retrieval algorithms, plotting, stare processing, metadata, and serialization. It is both façade and workflow implementation.</p><p><strong>Change:</strong> move command workflows into application services and leave the legacy client as a thin compatibility wrapper.</p></article>
+    <article class="violation"><h3><strong>Domain package depends outward</strong></h3><p><code>domain.calculation.retrieval</code> imports legacy helpers from <code>signal_calc</code>, <code>wind_calc</code>, and the <code>retrieval</code> package.</p><p><strong>Change:</strong> move or wrap those algorithms behind domain-owned functions so the domain does not depend on compatibility modules.</p></article>
+    <article class="violation"><h3><strong>Domain merging owns adapters</strong></h3><p><code>domain/merging/level_1.py</code> directly imports Halo/WindCube readers and constructs xarray datasets. This makes a domain module aware of instrument and serialization details.</p><p><strong>Change:</strong> split raw reading, normalized-data merging, dataset conversion, and application workflow coordination.</p></article>
+    <article class="violation"><h3><strong>Configuration dictionaries cross layers</strong></h3><p><code>dict[str, str]</code> values are interpreted in adapters, retrieval façades, metadata, merging, and <code>main_proc.py</code>.</p><p><strong>Change:</strong> parse once into typed application/domain configuration objects before invoking use cases.</p></article>
+    <article class="violation"><h3><strong>xarray is an internal calculation input</strong></h3><p>Retrieval compatibility functions convert xarray datasets to domain scans, but <code>main_proc</code> and legacy retrieval paths still coordinate around xarray.</p><p><strong>Change:</strong> confine xarray to input/output adapters and pass <code>LidarScan</code> and domain results through application services.</p></article>
+    <article class="violation"><h3><strong>Parallel façades duplicate decisions</strong></h3><p>CLI/client paths, typed processing paths, standard retrieval wrappers, experimental wrappers, and stare workflows each make overlapping dispatch decisions.</p><p><strong>Change:</strong> introduce one application-level dispatch/use-case layer and make public façades delegate to it.</p></article>
+  </div>
+
+  <h3 style="margin-top:28px">Migration sequence</h3>
+  <div class="flow" aria-label="DDD migration sequence">
+    <span>Typed config/request</span><b>→</b><span>Application use case</span><b>→</b><span>File/content port</span><b>→</b><span>Instrument adapter</span><b>→</b><span>Normalized observations</span><b>→</b><span>Domain calculation</span><b>→</b><span>Product adapter</span>
+  </div>
+  <details><summary>What should remain at the outside?</summary><p>CLI parsing, legacy argument compatibility, config-file parsing, path discovery, byte decoding, xarray/NetCDF conversion, metadata serialization, plotting, and filesystem cleanup.</p></details>
+  <details><summary>What should move inward?</summary><p>Scan validation, retrieval method selection as a domain concept, typed retrieval settings, time-grid rules, consensus policies, geometric calculations, quality rules, and result invariants.</p></details>
+
+  <h2>3 · Target domain-driven design</h2>
+  <p>The target keeps all technical representations at the boundary and makes the application layer coordinate typed domain objects. The numerical core can remain opaque in this view; its stable seam is the domain input/output contract.</p>
+  <div class="diagram" aria-label="Target domain driven design diagram">
+    <svg viewBox="0 0 1450 720" role="img" aria-labelledby="target-title target-desc">
+      <title id="target-title">Target domain-driven design</title>
+      <desc id="target-desc">Public interfaces call application use cases, which depend on ports and domain services. Adapters implement the ports and convert technical data to domain data.</desc>
+      <defs><marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#596579" /></marker></defs>
+      <rect class="lane" x="20" y="20" width="1410" height="115" fill="var(--public)" /><text class="lane-title" x="42" y="49">Interfaces</text>
+      <rect class="lane" x="20" y="155" width="1410" height="145" fill="var(--app)" /><text class="lane-title" x="42" y="184">Application layer · use cases and workflow coordination</text>
+      <rect class="lane" x="20" y="320" width="1410" height="210" fill="var(--domain)" /><text class="lane-title" x="42" y="349">Domain layer · stable business/scientific concepts</text>
+      <rect class="lane" x="20" y="550" width="1410" height="145" fill="var(--adapter)" /><text class="lane-title" x="42" y="579">Adapters and infrastructure</text>
+
+      <rect class="box" x="70" y="75" width="240" height="44" fill="var(--white)" /><text class="box-title" x="87" y="102">CLI / typed API / legacy façade</text>
+      <rect class="box" x="390" y="75" width="250" height="44" fill="var(--white)" /><text class="box-title" x="407" y="102">ProcessingRequest</text>
+      <rect class="box" x="720" y="75" width="275" height="44" fill="var(--white)" /><text class="box-title" x="737" y="102">ProcessingConfiguration</text>
+      <rect class="box" x="1075" y="75" width="275" height="44" fill="var(--white)" /><text class="box-title" x="1092" y="102">OutputRequest</text>
+      <path class="arrow" marker-end="url(#arrow2)" d="M310 97 H390" /><path class="arrow" marker-end="url(#arrow2)" d="M640 97 H720" /><path class="arrow" marker-end="url(#arrow2)" d="M995 97 H1075" />
+
+      <rect class="box" x="65" y="215" width="270" height="58" fill="var(--white)" /><text class="box-title" x="82" y="239">ProcessLevel1</text><text class="box-text" x="82" y="259">discover → read → normalize → merge</text>
+      <rect class="box" x="400" y="215" width="270" height="58" fill="var(--white)" /><text class="box-title" x="417" y="239">ProcessLevel2</text><text class="box-text" x="417" y="259">validate → retrieve → product</text>
+      <rect class="box" x="735" y="215" width="270" height="58" fill="var(--white)" /><text class="box-title" x="752" y="239">ProcessNearRealTime</text><text class="box-text" x="752" y="259">window + cleanup policy</text>
+      <rect class="box" x="1070" y="215" width="290" height="58" fill="var(--white)" /><text class="box-title" x="1087" y="239">ProcessStare / Quicklooks</text><text class="box-text" x="1087" y="259">compose products and views</text>
+      <path class="arrow" marker-end="url(#arrow2)" d="M215 119 V215" /><path class="arrow" marker-end="url(#arrow2)" d="M515 119 V215" /><path class="arrow dashed" marker-end="url(#arrow2)" d="M860 119 V215" /><path class="arrow dashed" marker-end="url(#arrow2)" d="M1210 119 V215" />
+
+      <rect class="box" x="60" y="385" width="260" height="95" fill="var(--white)" /><text class="box-title" x="77" y="410">Domain models</text><text class="box-text" x="77" y="430">LidarScan</text><text class="box-text" x="77" y="448">RetrievalParameters · TimeGrid</text><text class="box-text" x="77" y="466">WindRetrievalResult</text>
+      <rect class="box" x="375" y="385" width="280" height="95" fill="var(--white)" /><text class="box-title" x="392" y="410">Domain policies</text><text class="box-text" x="392" y="430">retrieval method</text><text class="box-text" x="392" y="448">quality/validation rules</text><text class="box-text" x="392" y="466">time-window semantics</text>
+      <rect class="box" x="710" y="385" width="300" height="95" fill="var(--white)" /><text class="box-title" x="727" y="410">Calculation service</text><text class="box-text" x="727" y="430">retrieve(scan, parameters)</text><text class="box-text" x="727" y="448">→ WindRetrievalResult</text><text class="box-text" x="727" y="466">numerical core remains isolated</text>
+      <rect class="box" x="1065" y="385" width="300" height="95" fill="var(--white)" /><text class="box-title" x="1082" y="410">Ports</text><text class="box-text" x="1082" y="430">RawFileSource</text><text class="box-text" x="1082" y="448">InstrumentNormalizer</text><text class="box-text" x="1082" y="466">ProductWriter / QuicklookWriter</text>
+      <path class="arrow" marker-end="url(#arrow2)" d="M200 273 V385" /><path class="arrow" marker-end="url(#arrow2)" d="M535 273 V385" /><path class="arrow" marker-end="url(#arrow2)" d="M870 273 V385" /><path class="arrow" marker-end="url(#arrow2)" d="M1215 273 V385" />
+      <path class="arrow" marker-end="url(#arrow2)" d="M320 432 H375" /><path class="arrow" marker-end="url(#arrow2)" d="M655 432 H710" /><path class="arrow" marker-end="url(#arrow2)" d="M1010 432 H1065" />
+
+      <rect class="box" x="55" y="615" width="235" height="55" fill="#fff7ed" /><text class="box-title" x="72" y="638">Halo/WindCube readers</text><text class="box-text" x="72" y="657">bytes → normalized observations</text>
+      <rect class="box" x="350" y="615" width="235" height="55" fill="#fff7ed" /><text class="box-title" x="367" y="638">Config + filesystem</text><text class="box-text" x="367" y="657">paths → bytes → requests</text>
+      <rect class="box" x="645" y="615" width="235" height="55" fill="#fff7ed" /><text class="box-title" x="662" y="638">xarray/NetCDF adapters</text><text class="box-text" x="662" y="657">domain ↔ product dataset</text>
+      <rect class="box" x="940" y="615" width="235" height="55" fill="#fff7ed" /><text class="box-title" x="957" y="638">Metadata + writers</text><text class="box-text" x="957" y="657">dataset → NetCDF/PNG</text>
+      <rect class="box" x="1235" y="615" width="150" height="55" fill="var(--infra)" /><text class="box-title" x="1252" y="638">Legacy bridge</text><text class="box-text" x="1252" y="657">old API</text>
+      <path class="arrow dashed" marker-end="url(#arrow2)" d="M1215 480 V615 H172" /><path class="arrow dashed" marker-end="url(#arrow2)" d="M1215 480 V615 H467" /><path class="arrow dashed" marker-end="url(#arrow2)" d="M1215 480 V615 H762" /><path class="arrow dashed" marker-end="url(#arrow2)" d="M1215 480 V615 H1057" /><path class="arrow dashed" marker-end="url(#arrow2)" d="M1215 480 V615 H1310" />
+      <text class="edge" x="245" y="602">implements ports</text>
+    </svg>
+  </div>
+
+  <h3 style="margin-top:28px">Conversion boundaries</h3>
+  <div class="flow">
+    <span>CLI arguments</span><b>→</b><span>typed request</span><b>→</b><span>file references</span><b>→</b><span>bytes</span><b>→</b><span>instrument raw model</span><b>→</b><span>NormalizedRadialData</span><b>→</b><span>LidarScan</span><b>→</b><span>WindRetrievalResult</span><b>→</b><span>xarray/NetCDF/PNG</span>
+  </div>
+
+  <h3>Recommended test placement</h3>
+  <div class="tests">
+    <article class="test-card"><h3>Domain unit tests</h3><p>Highest-value stable tests. Exercise <code>LidarScan</code>, <code>RetrievalParameters</code>, time-grid semantics, quality rules, retrieval policies, and calculation results using only NumPy/domain objects.</p></article>
+    <article class="test-card"><h3>Domain contract tests</h3><p>Validate shapes, required fields, invalid windows, unsupported methods, missing observations, and invariant enforcement before the calculation core runs.</p></article>
+    <article class="test-card"><h3>Adapter contract tests</h3><p>Verify Halo/WindCube bytes become valid normalized observations and that xarray/NetCDF conversions preserve dimensions, units, fill values, coordinates, and metadata.</p></article>
+    <article class="test-card"><h3>Application workflow tests</h3><p>Use fake ports to test sequencing, daily/NRT windows, adjacent-file selection, error propagation, and the correct retrieval method without asserting numerical internals.</p></article>
+    <article class="test-card"><h3>Serialization tests</h3><p>Test product schemas, global metadata, time encodings, NetCDF writing, quicklook inputs, and operational masking independently from domain calculations.</p></article>
+    <article class="test-card"><h3>CLI smoke tests</h3><p>Test argument parsing and command-to-use-case dispatch only. Do not make CLI tests responsible for scientific correctness.</p></article>
+  </div>
+
+  <h3 style="margin-top:28px">Suggested migration order</h3>
+  <ol>
+    <li>Define typed application requests and configuration objects at the public boundary.</li>
+    <li>Extract application use cases from <code>hpl2netCDF_client.py</code> and <code>main_proc.py</code>.</li>
+    <li>Move all xarray, bytes, paths, and NetCDF handling behind ports and adapters.</li>
+    <li>Make domain calculation depend only on domain models and domain-owned policies/helpers.</li>
+    <li>Keep legacy functions as thin bridges that translate inputs and delegate to use cases.</li>
+    <li>Add domain, adapter, application, serialization, and CLI tests at their respective boundaries.</li>
+  </ol>
+
+  <footer>This document reflects the current repository structure around <code>main_proc.py</code>, <code>processing.py</code>, <code>hpl2netCDF_client.py</code>, <code>hpl_files.py</code>, <code>adapter/</code>, <code>domain/</code>, and <code>retrieval/</code>.</footer>
+</main>
+</body>
+</html>
