@@ -10,4 +10,3 @@ class ByteContentReader(Protocol):
     def __call__(
         self, file_content: bytes, conf_dict: Mapping[str, str]
     ) -> xr.Dataset | Literal[False]: ...
-

@@ -100,24 +100,71 @@ def build_normalized_radial_dataset(data: NormalizedRadialData) -> xr.Dataset:
         "comments": "zenith angle of the beam to the local vertical; a value of zero is directly overhead",
     }
     scalar_attrs = {
-        "lat": {"units": "degrees_north", "long_name": "latitude", "standard_name": "latitude", "comments": "latitude of sensor", "_FillValue": -999.0},
-        "lon": {"units": "degrees_east", "long_name": "longitude", "standard_name": "longitude", "comments": "longitude of sensor", "_FillValue": -999.0},
-        "zsl": {"units": "m", "comments": "system altitude above mean sea level", "standard_name": "altitude", "_FillValue": -999.0},
-        "wl": {"units": "m", "long_name": "laser center wavelength", "standard_name": "radiation_wavelength", "_FillValue": -999.0},
-        "pd": {"units": "seconds", "long_name": "laser duration", "comments": "duration of the transmitted pulse pd = 2 dr / c", "_FillValue": -999.0},
-        "nfft": {"units": "1", "long_name": "number of fft points", "comments": "according to the manufacturer", "_FillValue": -999.0},
-        "nrg": {"units": "1", "long_name": "total number of range gates per ray", "_FillValue": -999.0},
+        "lat": {
+            "units": "degrees_north",
+            "long_name": "latitude",
+            "standard_name": "latitude",
+            "comments": "latitude of sensor",
+            "_FillValue": -999.0,
+        },
+        "lon": {
+            "units": "degrees_east",
+            "long_name": "longitude",
+            "standard_name": "longitude",
+            "comments": "longitude of sensor",
+            "_FillValue": -999.0,
+        },
+        "zsl": {
+            "units": "m",
+            "comments": "system altitude above mean sea level",
+            "standard_name": "altitude",
+            "_FillValue": -999.0,
+        },
+        "wl": {
+            "units": "m",
+            "long_name": "laser center wavelength",
+            "standard_name": "radiation_wavelength",
+            "_FillValue": -999.0,
+        },
+        "pd": {
+            "units": "seconds",
+            "long_name": "laser duration",
+            "comments": "duration of the transmitted pulse pd = 2 dr / c",
+            "_FillValue": -999.0,
+        },
+        "nfft": {
+            "units": "1",
+            "long_name": "number of fft points",
+            "comments": "according to the manufacturer",
+            "_FillValue": -999.0,
+        },
+        "nrg": {
+            "units": "1",
+            "long_name": "total number of range gates per ray",
+            "_FillValue": -999.0,
+        },
         "lrg": {"units": "m", "long_name": "range gate length", "_FillValue": -999.0},
         "nsmpl": {"units": "1", "long_name": "points per range gate"},
         "prf": {"units": "s-1", "long_name": "pulse repetition frequency", "_FillValue": -999.0},
         "npls": {"units": "1", "long_name": "number of pulses per ray", "_FillValue": -999.0},
         "focus": {"units": "m", "long_name": "telescope focus length", "_FillValue": -999.0},
-        "resv": {"units": "m s-1", "long_name": "resolution of Doppler velocity", "_FillValue": -999.0},
-        "nqf": {"long_name": "nyquist frequency", "comments": "half of the detector sampling frequency; detector bandwidth"},
+        "resv": {
+            "units": "m s-1",
+            "long_name": "resolution of Doppler velocity",
+            "_FillValue": -999.0,
+        },
+        "nqf": {
+            "long_name": "nyquist frequency",
+            "comments": "half of the detector sampling frequency; detector bandwidth",
+        },
         "nqv": {"long_name": "nyquist velocity", "comments": "nq_freq*lambda/2; signal bandwidth"},
         "smplf": {"units": "s-1", "long_name": "sampling frequency", "comments": "nsmpl / tgint"},
         "resf": {"units": "s-1", "long_name": "frequency resolution", "comments": "smplf / nfft"},
-        "tgint": {"units": "s", "long_name": "total observation time per range gate", "comments": "time window used for time gating the time series of the signal received on the detector: tgint = (2 X) / c, with X = range_bnds[range,1] - range_bnds[range,0]"},
+        "tgint": {
+            "units": "s",
+            "long_name": "total observation time per range gate",
+            "comments": "time window used for time gating the time series of the signal received on the detector: tgint = (2 X) / c, with X = range_bnds[range,1] - range_bnds[range,0]",
+        },
     }
 
     dataset = xr.Dataset(
@@ -147,11 +194,34 @@ def build_normalized_radial_dataset(data: NormalizedRadialData) -> xr.Dataset:
             "smplf": ([], data.sampling_frequency, scalar_attrs["smplf"]),
             "resf": ([], data.frequency_resolution, scalar_attrs["resf"]),
             "tgint": ([], data.gate_time_interval, scalar_attrs["tgint"]),
-            "range_bnds": (["range", "nv"], data.range_bounds, {"units": "m", "_FillValue": -999.0}),
+            "range_bnds": (
+                ["range", "nv"],
+                data.range_bounds,
+                {"units": "m", "_FillValue": -999.0},
+            ),
         },
         coords={
-            "time": (["time"], data.time, {"units": data.time_units, "standard_name": "time", "long_name": "Time", "calendar": "gregorian", "_CoordinateAxisType": "time"}),
-            "range": (["range"], data.range, {"units": "m", "long_name": "line of sight distance towards the center of each range gate", "_FillValue": -999.0, "_CoordinateAxisType": "range"}),
+            "time": (
+                ["time"],
+                data.time,
+                {
+                    "units": data.time_units,
+                    "standard_name": "time",
+                    "long_name": "Time",
+                    "calendar": "gregorian",
+                    "_CoordinateAxisType": "time",
+                },
+            ),
+            "range": (
+                ["range"],
+                data.range,
+                {
+                    "units": "m",
+                    "long_name": "line of sight distance towards the center of each range gate",
+                    "_FillValue": -999.0,
+                    "_CoordinateAxisType": "range",
+                },
+            ),
             "nv": (["nv"], np.arange(0, 2).astype(np.int8)),
         },
     )
