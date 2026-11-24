@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lidar Wind Toolbox · Calculation paths</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d687a;
+      --line: #cbd4e1;
+      --paper: #f7f9fc;
+      --white: #fff;
+      --input: #dbeafe;
+      --grid: #ede9fe;
+      --screen: #fef3c7;
+      --geometry: #dcfce7;
+      --solve: #d1fae5;
+      --quality: #fee2e2;
+      --stare: #fce7f3;
+      --output: #ffedd5;
+      --experimental: #e5e7eb;
+      --accent: #3157a6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 15px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { max-width: 1700px; margin: 0 auto; padding: 34px 26px 64px; }
+    h1, h2, h3 { line-height: 1.2; }
+    h1 { margin: 0 0 8px; font-size: clamp(30px, 4vw, 50px); letter-spacing: -0.04em; }
+    h2 { margin: 40px 0 14px; font-size: 25px; }
+    h3 { margin: 0 0 7px; font-size: 16px; }
+    p { max-width: 84ch; }
+    .lede { color: var(--muted); font-size: 17px; max-width: 85ch; }
+    .note {
+      border-left: 4px solid var(--accent); background: var(--white); padding: 13px 16px;
+      border-radius: 8px; box-shadow: 0 4px 18px #1720330d;
+    }
+    .legend, .comparison, .cards { display: grid; gap: 12px; }
+    .legend { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin: 18px 0; }
+    .legend-item { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+    .swatch { width: 18px; height: 18px; border: 1px solid #aeb9c9; border-radius: 4px; flex: 0 0 auto; }
+    .comparison-wrap { overflow-x: auto; padding-bottom: 7px; }
+    .comparison { grid-template-columns: repeat(4, minmax(265px, 1fr)); min-width: 1150px; align-items: start; }
+    .method {
+      background: var(--white); border: 1px solid var(--line); border-radius: 13px;
+      box-shadow: 0 8px 28px #17203312; overflow: hidden;
+    }
+    .method-head { padding: 17px 17px 14px; border-bottom: 1px solid var(--line); }
+    .method-head p { margin: 0; color: var(--muted); font-size: 13px; }
+    .method-head.standard { border-top: 5px solid #4f7fc7; }
+    .method-head.windcube { border-top: 5px solid #4b9c76; }
+    .method-head.experimental { border-top: 5px solid #7b8798; }
+    .method-head.stare { border-top: 5px solid #c05d91; }
+    .step-list { padding: 14px; }
+    .step {
+      position: relative; padding: 12px 12px 12px 15px; margin: 0 0 10px;
+      border: 1px solid #b8c3d2; border-left: 5px solid #8492a6; border-radius: 9px;
+    }
+    .step:last-child { margin-bottom: 0; }
+    .step:not(:last-child)::after {
+      content: "↓"; position: absolute; left: 50%; bottom: -21px; color: #78869a;
+      font-size: 17px; font-weight: 700; z-index: 1;
+    }
+    .step-title { font-weight: 750; font-size: 14px; }
+    .step-code { color: #526074; font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; margin-top: 3px; }
+    .step p { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
+    .input { background: var(--input); border-left-color: #4f7fc7; }
+    .grid { background: var(--grid); border-left-color: #8069c4; }
+    .screen { background: var(--screen); border-left-color: #c49422; }
+    .geometry { background: var(--geometry); border-left-color: #4b9c76; }
+    .solve { background: var(--solve); border-left-color: #16845d; }
+    .quality { background: var(--quality); border-left-color: #c75c5c; }
+    .stare { background: var(--stare); border-left-color: #c05d91; }
+    .output { background: var(--output); border-left-color: #c8752d; }
+    .experimental { background: var(--experimental); border-left-color: #7b8798; }
+    .cards { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .card, details {
+      background: var(--white); border: 1px solid var(--line); border-radius: 10px; padding: 16px;
+    }
+    .card p, details p { margin: 6px 0 0; color: var(--muted); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; min-width: 850px; border-collapse: collapse; background: var(--white); border: 1px solid var(--line); }
+    th, td { text-align: left; vertical-align: top; padding: 11px 12px; border-bottom: 1px solid var(--line); }
+    th { background: #eef2f7; font-size: 13px; }
+    td { color: var(--muted); }
+    td:first-child { color: var(--ink); font-weight: 700; width: 18%; }
+    code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    details { margin-top: 12px; }
+    summary { cursor: pointer; font-weight: 700; }
+    footer { margin-top: 36px; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Calculation paths</h1>
+  <p class="lede">A code-level guide to how the Lidar Wind Toolbox turns measurements into wind products or turbulence dissipation estimates. This page is only about calculations: it does not describe the wider package architecture, file workflows, or DDD migration.</p>
+  <p class="note"><strong>How to read this:</strong> follow each column from top to bottom. Steps with the same color represent the same calculation idea, even when the input adapter or the scientific details differ. The experimental wind path is shown separately because it has a separate compatibility entrypoint, but it currently reaches the same numerical core as the standard wind paths.</p>
+
+  <h2>Four calculation paths side by side</h2>
+  <div class="legend" aria-label="Calculation step legend">
+    <div class="legend-item"><span class="swatch" style="background:var(--input)"></span>Input conversion</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--grid)"></span>Grid and parameters</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--screen)"></span>Signal screening / selection</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--geometry)"></span>Geometry</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--solve)"></span>Numerical solution</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--quality)"></span>Uncertainty and quality</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--stare)"></span>Stare-specific turbulence calculation</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--output)"></span>Output preparation</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--experimental)"></span>Compatibility boundary</div>
+  </div>
+
+  <div class="comparison-wrap">
+    <section class="comparison" aria-label="Side-by-side calculation paths">
+      <article class="method">
+        <header class="method-head standard">
+          <h3>1 · Standard Halo VAD</h3>
+          <p>Halo scan data → horizontal wind vector and diagnostics</p>
+        </header>
+        <div class="step-list">
+          <div class="step input"><div class="step-title">Convert the Halo dataset</div><div class="step-code">retrieval.xarray_adapter.halo_scan</div><p>Rename the instrument fields into a typed <code>LidarScan</code>: time, azimuth, elevation, radial velocity, SNR, beta, range, and optional spectral width.</p></div>
+          <div class="step grid"><div class="step-title">Read parameters and make time bins</div><div class="step-code">RetrievalParameters.from_legacy_config<br>build_time_grid</div><p>Turn configuration values into calculation settings, then assign every measurement ray to a time interval.</p></div>
+          <div class="step screen"><div class="step-title">Group rays into consensus beams</div><div class="step-code">_consensus_beams → consensus</div><p>Group nearby azimuths, reject weak or inconsistent radial velocities, and average the most plausible velocity cluster for each direction and height.</p></div>
+          <div class="step geometry"><div class="step-title">Build the viewing geometry</div><div class="step-code">retrieval.geometry.build_Amatrix</div><p>Convert each beam’s azimuth and elevation into the coefficients that relate the unknown wind vector to the measured line-of-sight velocity.</p></div>
+          <div class="step solve"><div class="step-title">Solve for u, v, and w</div><div class="step-code">np.linalg.lstsq</div><p>For every time bin and range gate, fit the three-dimensional wind vector that best explains the selected radial velocities.</p></div>
+          <div class="step quality"><div class="step-title">Estimate uncertainty and quality</div><div class="step-code">covariance · r² · CN · finalize_quality</div><p>Propagate beam uncertainty, calculate fit quality and conditioning, convert the vector to speed and direction, and apply quality flags.</p></div>
+          <div class="step output"><div class="step-title">Create the Level-2 dataset</div><div class="step-code">retrieval.xarray_adapter.result_to_xarray</div><p>Expose wind components, speed, direction, uncertainties, diagnostics, coordinates, and metadata as an xarray dataset.</p></div>
+        </div>
+      </article>
+
+      <article class="method">
+        <header class="method-head windcube">
+          <h3>2 · WindCube DBS</h3>
+          <p>WindCube scan data → horizontal wind vector and diagnostics</p>
+        </header>
+        <div class="step-list">
+          <div class="step input"><div class="step-title">Convert the WindCube dataset</div><div class="step-code">retrieval.xarray_adapter.windcube_scan</div><p>Translate WindCube names and units into the same typed <code>LidarScan</code> used by the domain calculation.</p></div>
+          <div class="step grid"><div class="step-title">Read parameters and make time bins</div><div class="step-code">RetrievalParameters.from_legacy_config<br>build_time_grid</div><p>Use the configured averaging interval and assign each WindCube ray to its time bin.</p></div>
+          <div class="step screen"><div class="step-title">Group rays into consensus beams</div><div class="step-code">_consensus_beams → consensus</div><p>Apply the same SNR, beta, velocity-range, and cluster-consensus logic used by the standard array calculation.</p></div>
+          <div class="step geometry"><div class="step-title">Build the viewing geometry</div><div class="step-code">retrieval.geometry.build_Amatrix</div><p>Use the WindCube beam directions to create the equations connecting line-of-sight velocities to the three wind components.</p></div>
+          <div class="step solve"><div class="step-title">Solve for u, v, and w</div><div class="step-code">domain.calculation.retrieve_array</div><p>Fit the wind vector with least squares for each time and height cell. The numerical solver is shared with standard VAD.</p></div>
+          <div class="step quality"><div class="step-title">Estimate uncertainty and quality</div><div class="step-code">covariance · r² · CN · finalize_quality</div><p>Calculate fit residuals, uncertainty, condition number, speed, direction, and quality flags.</p></div>
+          <div class="step output"><div class="step-title">Create the Level-2 dataset</div><div class="step-code">retrieval.xarray_adapter.result_to_xarray</div><p>Serialize the common wind result into the standard Level-2 variables and metadata.</p></div>
+        </div>
+      </article>
+
+      <article class="method">
+        <header class="method-head experimental">
+          <h3>3 · Experimental wind retrieval</h3>
+          <p>Experimental entrypoint → the same array retrieval core</p>
+        </header>
+        <div class="step-list">
+          <div class="step experimental"><div class="step-title">Select experimental adapter</div><div class="step-code">main_proc.py → retrieval.experimental</div><p>The configuration flag selects experimental compatibility functions. This changes the entrypoint, not the numerical algorithm currently used underneath.</p></div>
+          <div class="step input"><div class="step-title">Convert the input dataset</div><div class="step-code">experimental.lvl2vad_standard<br>or experimental.lvl2wcdbs</div><p>Choose the Halo or WindCube scan adapter and create the same typed <code>LidarScan</code> as the normal path.</p></div>
+          <div class="step grid"><div class="step-title">Read parameters and make time bins</div><div class="step-code">RetrievalParameters.from_legacy_config<br>build_time_grid</div><p>Build the typed calculation settings and the time grid used by the common retrieval core.</p></div>
+          <div class="step screen"><div class="step-title">Select consensus beams</div><div class="step-code">_consensus_beams → consensus</div><p>Use the current consensus selection and quality thresholds to reduce many raw rays to representative beam velocities.</p></div>
+          <div class="step geometry"><div class="step-title">Build the viewing geometry</div><div class="step-code">build_Amatrix</div><p>Turn beam directions into the matrix needed for a three-component wind fit.</p></div>
+          <div class="step solve"><div class="step-title">Run the shared numerical core</div><div class="step-code">domain.calculation.retrieve_array</div><p>Perform the same least-squares vector retrieval as Standard VAD or WindCube DBS, depending on the selected experimental adapter.</p></div>
+          <div class="step quality"><div class="step-title">Keep richer diagnostics in the result</div><div class="step-code">WindRetrievalResult → result_to_xarray</div><p>Retain the array result’s uncertainty, fit, component, consensus, and quality information before serialization.</p></div>
+          <div class="step output"><div class="step-title">Create the Level-2 dataset</div><div class="step-code">retrieval.xarray_adapter.result_to_xarray</div><p>Write the result using the same output adapter and variable layout as the normal wind paths.</p></div>
+        </div>
+      </article>
+
+      <article class="method">
+        <header class="method-head stare">
+          <h3>4 · Vertical stare / epsilon</h3>
+          <p>Vertical Doppler velocity + wind support → turbulence dissipation</p>
+        </header>
+        <div class="step-list">
+          <div class="step input"><div class="step-title">Build the stare input dataset</div><div class="step-code">stare_proc.lvl2_stare_epsilon</div><p>Select Doppler velocity, intensity, time, and range from the stare Level-1 dataset and select horizontal wind speed from the wind Level-2 dataset.</p></div>
+          <div class="step grid"><div class="step-title">Create averaging bins</div><div class="step-code">pd.date_range · binsize</div><p>Divide the day into configured time windows. The final turbulence values will be reported at the midpoint of each window.</p></div>
+          <div class="step screen"><div class="step-title">Screen Doppler velocity with SNR</div><div class="step-code">stare_calc.screen_stare_dv_with_snr<br>NoisyData.screen_data</div><p>Estimate background noise from the upper gates, reject weak or persistently negative signals, and mask unusable Doppler velocities.</p></div>
+          <div class="step stare"><div class="step-title">Prepare wind support</div><div class="step-code">build_u_for_epsilon_xr</div><p>Make a usable horizontal-wind field by smoothing in time and height, interpolating gaps, and recording how each value was filled.</p></div>
+          <div class="step stare"><div class="step-title">Measure lagged variability</div><div class="step-code">binned_autocovariances<br>lagged_autocovariance</div><p>Within each time window, compare the velocity signal with time-shifted copies to measure how rapidly the fluctuations decorrelate.</p></div>
+          <div class="step stare"><div class="step-title">Separate atmospheric and noise variance</div><div class="step-code">lenschow_noise_correction</div><p>Fit the small-lag autocovariance trend. Its intercept estimates atmospheric variance, while the difference from total variance estimates noise variance.</p></div>
+          <div class="step stare"><div class="step-title">Calculate epsilon</div><div class="step-code">epsilon_from_oconnor_variance<br>oconnor_length_scales</div><p>Combine atmospheric variance, wind speed, sampling time, averaging length, height, and the Kolmogorov constant to estimate the turbulent energy dissipation rate.</p></div>
+          <div class="step quality"><div class="step-title">Build turbulence quality fields</div><div class="step-code">qepsilon · uncertainty helpers</div><p>Require valid variance, wind support, and epsilon values; optionally propagate uncertainty from variance sampling and wind-support filling.</p></div>
+          <div class="step output"><div class="step-title">Create the stare Level-2 product</div><div class="step-code">stare_output_to_xarray</div><p>Return epsilon, variance, wind support, screening diagnostics, sample counts, flags, and coordinates on a clean time-height grid.</p></div>
+        </div>
+      </article>
+    </section>
+  </div>
+
+  <h2>What is shared, and what is different?</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Aspect</th><th>Standard Halo VAD</th><th>WindCube DBS</th><th>Experimental wind</th><th>Vertical stare</th></tr></thead>
+      <tbody>
+        <tr><td>Input</td><td>Halo xarray fields such as <code>dv</code>, <code>azi</code>, <code>zenith</code>, and <code>intensity</code>.</td><td>WindCube fields such as <code>radial_wind_speed</code>, <code>azimuth</code>, and <code>cnr</code>.</td><td>Halo or WindCube input selected by the experimental adapter.</td><td>Vertical Doppler velocity and SNR/intensity, plus horizontal wind support.</td></tr>
+        <tr><td>Core operation</td><td colspan="3">Consensus beam selection, geometry matrix construction, least-squares fitting, and vector conversion in <code>retrieve_array</code>.</td><td>Autocovariance analysis and turbulence-statistics calculations in <code>stare_calc.py</code>.</td></tr>
+        <tr><td>Main output</td><td colspan="3">u, v, w, wind speed, wind direction, uncertainties, fit diagnostics, and quality flags.</td><td>Epsilon, atmospheric/noise variance, vertical-velocity mean, wind support, sample counts, and quality flags.</td></tr>
+        <tr><td>Main difference</td><td>Halo-specific normalization and standard velocity range.</td><td>WindCube-specific normalization and WindCube DBS velocity half-range.</td><td>Separate experimental compatibility boundary; same current array calculation.</td><td>No 3-D wind-vector fit; derives turbulence dissipation from vertical-stare fluctuations.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Important implementation notes</h2>
+  <details open><summary>Why Standard VAD, WindCube DBS, and Experimental Wind look similar</summary><p>All three wind columns eventually create a <code>LidarScan</code> and call <code>domain.calculation.retrieve_array</code>. The adapter determines how instrument fields become typed arrays; the method determines small calculation details such as velocity folding range; the shared core performs the beam consensus, geometry fit, uncertainty calculation, and result construction.</p></details>
+  <details><summary>Why stare is not another wind-vector retrieval</summary><p>A vertical stare observes one fixed direction over time. It does not provide the multiple beam directions needed to solve u, v, and w by VAD/DBS geometry. Instead, it uses the time variability of vertical velocity together with horizontal wind support to estimate turbulence dissipation.</p></details>
+
+  <footer>Calculation-focused documentation for the current implementations in <code>domain/calculation/retrieval.py</code>, <code>retrieval/</code>, <code>stare_calc.py</code>, and <code>stare_proc.py</code>.</footer>
+</main>
+</body>
+</html>
