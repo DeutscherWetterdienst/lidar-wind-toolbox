@@ -1,4 +1,5 @@
 import datetime
+import re
 from io import BytesIO, TextIOWrapper
 
 import numpy as np
@@ -9,8 +10,8 @@ from lidar_wind_toolbox.adapter.common import (
     NormalizedRadialData,
     build_normalized_radial_dataset,
 )
+from lidar_wind_toolbox.adapter.range_calc import range_calc
 from lidar_wind_toolbox.domain.constants import SPEED_OF_LIGHT
-from lidar_wind_toolbox.hpl_files import hpl_files
 from lidar_wind_toolbox.retrieval.uncertainty import calc_sigma_single
 
 
@@ -49,7 +50,7 @@ def read_halo(file_content: bytes, confDict: dict[str, str]) -> xr.Dataset:
                 counter_jj = 0
                 continue  # stop the loop and continue with the next line
 
-            tmp = hpl_files.switch(header_info, line)
+            tmp = hpl_switch(header_info, line)
             ## this temporary variable indicates whether the a given data line includes
             # the spectral width or not, so 2d information can be distinguished from
             # 1d information.
@@ -149,10 +150,10 @@ def read_halo(file_content: bytes, confDict: dict[str, str]) -> xr.Dataset:
     ]
 
     # calculate range in meters from range gate number, gate length
-    range_values = hpl_files.range_calc(mdata["range gate"][0, :], confDict)
-    range_gate_half_width = (
-        np.float32(confDict["PULS_DURATION"]) * SPEED_OF_LIGHT / 4
-    ).astype("f4")
+    range_values = range_calc(mdata["range gate"][0, :], confDict)
+    range_gate_half_width = (np.float32(confDict["PULS_DURATION"]) * SPEED_OF_LIGHT / 4).astype(
+        "f4"
+    )
     range_bounds = np.array(
         [range_values - range_gate_half_width, range_values + range_gate_half_width]
     ).T
@@ -185,11 +186,7 @@ def read_halo(file_content: bytes, confDict: dict[str, str]) -> xr.Dataset:
     velocity_resolution = np.float32(mheader["Resolution (m/s)"])
     nyquist_frequency = (gate_points / gate_time_interval / 2).astype("f4")
     nyquist_velocity = (
-        gate_points
-        / gate_time_interval
-        / 2
-        * np.float32(confDict["SYSTEM_WAVELENGTH"])
-        / 2
+        gate_points / gate_time_interval / 2 * np.float32(confDict["SYSTEM_WAVELENGTH"]) / 2
     ).astype("f4")
     sampling_frequency = gate_points / gate_time_interval
     frequency_resolution = (
@@ -230,3 +227,19 @@ def read_halo(file_content: bytes, confDict: dict[str, str]) -> xr.Dataset:
             gate_time_interval=gate_time_interval,
         )
     )
+
+
+def split_header(string: str) -> list[str]:
+    return [x.strip() for x in re.split(r"[:=\-]", re.sub("[\n\t]", "", string), 1)]
+
+
+def split_data(string: str) -> list[str]:
+    return re.split(r"\s+", re.sub("\n", "", string).strip())
+
+
+def split_default(string: str) -> str:
+    return string
+
+
+def hpl_switch(case: bool, string: str) -> list[str] | str:
+    return {True: split_header(string), False: split_data(string)}.get(case, split_default(string))

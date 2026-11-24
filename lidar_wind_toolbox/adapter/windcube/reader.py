@@ -8,8 +8,8 @@ from lidar_wind_toolbox.adapter.common import (
     NormalizedRadialData,
     build_normalized_radial_dataset,
 )
+from lidar_wind_toolbox.adapter.range_calc import range_calc
 from lidar_wind_toolbox.domain.constants import SPEED_OF_LIGHT
-from lidar_wind_toolbox.hpl_files import hpl_files
 from lidar_wind_toolbox.retrieval.uncertainty import calc_sigma_single
 
 
@@ -33,9 +33,7 @@ def read_wc_type(file_content: bytes) -> xr.Dataset | Literal[False]:
     return ds_ind
 
 
-def read_wcsradial(
-    file_content: bytes, confDict: dict[str, str]
-) -> xr.Dataset | Literal[False]:
+def read_wcsradial(file_content: bytes, confDict: dict[str, str]) -> xr.Dataset | Literal[False]:
     ## the windcube netCDF l1-files are in cf-radial format
     # this requires a workaround to open to access the radial data,
     # when relying on xarray package alone
@@ -66,22 +64,18 @@ def read_wcsradial(
     if time_reference is None:
         time_reference = ds_tmp.time_reference.data
 
-    range_values = hpl_files.range_calc(ds_tmp.gate_index.data.astype(int), confDict)
-    range_gate_half_width = (
-        np.float32(confDict["PULS_DURATION"]) * SPEED_OF_LIGHT / 4
-    ).astype("f4")
+    range_values = range_calc(ds_tmp.gate_index.data.astype(int), confDict)
+    range_gate_half_width = (np.float32(confDict["PULS_DURATION"]) * SPEED_OF_LIGHT / 4).astype(
+        "f4"
+    )
     range_bounds = np.array(
         [range_values - range_gate_half_width, range_values + range_gate_half_width]
     ).T
-    gate_time_interval = (
-        2 * (range_bounds[0, 1] - range_bounds[0, 0]) / SPEED_OF_LIGHT
-    )
+    gate_time_interval = 2 * (range_bounds[0, 1] - range_bounds[0, 0]) / SPEED_OF_LIGHT
     range_coordinate_values = ds_tmp.range.data.astype("f4")
 
     zenith_values = np.array([90 - ds_root.sweep_fixed_angle.data[0]] * ds_tmp.time.size)
-    radial_velocity_span = (
-        ds_tmp.radial_wind_speed.max() - ds_tmp.radial_wind_speed.min()
-    ).data
+    radial_velocity_span = (ds_tmp.radial_wind_speed.max() - ds_tmp.radial_wind_speed.min()).data
 
     ## calculate measurement uncertainty
     sigma_tmp = calc_sigma_single(
@@ -99,14 +93,10 @@ def read_wcsradial(
         pd.to_datetime(time_reference).strftime("%Y-%m-%d %H:%M:%S")
     )
     velocity_resolution = (radial_velocity_span / float(confDict["FFT_POINTS"])).astype("f4")
-    nyquist_frequency = (
-        radial_velocity_span / float(confDict["SYSTEM_WAVELENGTH"])
-    ).astype("f4")
+    nyquist_frequency = (radial_velocity_span / float(confDict["SYSTEM_WAVELENGTH"])).astype("f4")
     nyquist_velocity = (radial_velocity_span / 2).astype("f4")
     sampling_frequency = np.float32(confDict["NUMBER_OF_GATE_POINTS"]) / gate_time_interval
-    frequency_resolution = (
-        sampling_frequency / float(confDict["FFT_POINTS"])
-    ).astype("f4")
+    frequency_resolution = (sampling_frequency / float(confDict["FFT_POINTS"])).astype("f4")
     return build_normalized_radial_dataset(
         NormalizedRadialData(
             radial_velocity=ds_tmp.radial_wind_speed.data,

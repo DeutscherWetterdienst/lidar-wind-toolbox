@@ -8,6 +8,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
+from lidar_wind_toolbox.domain.merging.level_1 import combine_lvl1_to_ds
+
 
 from lidar_wind_toolbox.readers.file_discovery import try_date
 
@@ -133,24 +135,6 @@ class hpl_files(object):
         return r(rg_vec, 0.5).astype("f4")
 
     @staticmethod
-    def split_header(string):
-        return [x.strip() for x in re.split(r"[:=\-]", re.sub("[\n\t]", "", string), 1)]
-
-    @staticmethod
-    def split_data(string):
-        return re.split(r"\s+", re.sub("\n", "", string).strip())
-
-    @staticmethod
-    def split_default(string):
-        return string
-
-    @staticmethod
-    def switch(case: bool, string: str) -> list[str] | str:
-        return {True: hpl_files.split_header(string), False: hpl_files.split_data(string)}.get(
-            case, hpl_files.split_default
-        )
-
-    @staticmethod
     def combine_lvl1(
         hpl_list: "hpl_files",
         confDict: dict[str, str],
@@ -159,7 +143,15 @@ class hpl_files(object):
     ) -> Path:
         print(hpl_list.time)
         print(time_chosen)
-        ds = hpl_files.combine_lvl1_to_ds(hpl_list, confDict, date_chosen, time_chosen)
+
+        ds = combine_lvl1_to_ds(
+            [path.read_bytes() for path in hpl_list.name],
+            confDict,
+            None,
+            None,
+            date_chosen,
+            time_chosen,
+        )
 
         if time_chosen is not None:
             path = Path(confDict["NC_L1_PATH"])
@@ -215,13 +207,3 @@ class hpl_files(object):
         time_chosen: datetime.datetime | None = None,
     ) -> xr.Dataset:
         """Combine discovered files through the byte-content/domain boundary."""
-        from lidar_wind_toolbox.domain.merging.level_1 import combine_lvl1_to_ds
-
-        return combine_lvl1_to_ds(
-            [path.read_bytes() for path in hpl_list.name],
-            confDict,
-            None,
-            None,
-            date_chosen,
-            time_chosen,
-        )

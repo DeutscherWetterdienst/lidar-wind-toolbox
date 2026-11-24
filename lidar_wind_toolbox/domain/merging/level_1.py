@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from datetime import datetime, timedelta
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -13,8 +14,8 @@ from lidar_wind_toolbox.adapter.windcube import read_wc_type, read_wcsradial
 def combine_lvl1_to_ds(
     file_contents: list[bytes],
     confDict: dict[str, str],
-    data_from: datetime,
-    data_to: datetime,
+    data_from: Optional[datetime],
+    data_to: Optional[datetime],
     date_chosen: datetime,
     time_chosen: datetime | None = None,
 ) -> xr.Dataset:
@@ -171,4 +172,3 @@ def convert_to_instant(data_to: datetime) -> float:
         return (pd.to_datetime(data_to) - pd.Timestamp("1970-01-01")) / pd.Timedelta("1s")
     else:
         return (pd.to_datetime(data_to) - pd.Timestamp("1970-01-01", tz="UTC")) / pd.Timedelta("1s")
-

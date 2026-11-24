@@ -34,6 +34,7 @@ from lidar_wind_toolbox.retrieval.uncertainty import calc_sigma_single
 from lidar_wind_toolbox.retrieval.consensus import consensus
 from lidar_wind_toolbox.retrieval.geometry import build_Amatrix, uvw_2_spd, uvw_2_dir
 from lidar_wind_toolbox.domain.constants import SPEED_OF_LIGHT
+from lidar_wind_toolbox.domain.merging.level_1 import combine_lvl1_to_ds
 
 
 ColorKey = Literal["red", "green", "blue", "alpha"]
@@ -211,7 +212,15 @@ class hpl2netCDFClient(object):
         date_chosen = self.date2proc
         confDict = config.gen_confDict(url=self.config_dir)
         files_hpl = hpl_files.filelist_to_hpl_files(filelist, confDict["SYSTEM"], infile_prefix)
-        ds_tmp = hpl_files.combine_lvl1_to_ds(files_hpl, confDict, date_chosen)
+
+        ds_tmp = combine_lvl1_to_ds(
+            [path.read_bytes() for path in files_hpl.name],
+            confDict,
+            None,
+            None,
+            date_chosen,
+        )
+
         ds_lvl2 = process_dataset(ds_tmp, date_chosen, confDict)
         ds_lvl2.attrs["scan_type"] = confDict["SCAN_TYPE"]
 

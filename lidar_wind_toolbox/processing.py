@@ -39,12 +39,16 @@ def read_windcube_scan_files(
     files_hpl = hpl_files.filelist_to_hpl_files(files, context.instrument.system)
     processing_day = context.window.start.astimezone(UTC).replace(tzinfo=None)
 
-    return hpl_files.combine_lvl1_to_ds(
-        files_hpl,
-        _legacy_reader_config(
-            context=context,
-            reader_settings=reader_settings,
-        ),
+    confDict = _legacy_reader_config(
+        context=context,
+        reader_settings=reader_settings,
+    )
+
+    return combine_lvl1_to_ds(
+        [path.read_bytes() for path in files_hpl.name],
+        confDict,
+        None,
+        None,
         processing_day,
     )
 

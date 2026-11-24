@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import pytest
@@ -134,7 +135,12 @@ def test_read_windcube_scan_files_uses_explicit_reader_settings(
 ) -> None:
     captured: dict[str, object] = {}
 
+    class DummyPath:
+        def read_bytes(self) -> bytes:
+            return b"dummy"
+
     class DummyFiles:
+        name: list[DummyPath] = [DummyPath()]
         pass
 
     expected_dataset = native_windcube_level1_dataset()
@@ -145,12 +151,14 @@ def test_read_windcube_scan_files_uses_explicit_reader_settings(
         return DummyFiles()
 
     def fake_combine(
-        files_hpl: DummyFiles,
+        file_contents: list[bytes],
         conf_dict: dict[str, str],
+        data_from: Optional[datetime],
+        data_to: Optional[datetime],
         date_chosen: datetime,
         time_chosen: datetime | None = None,
     ) -> xr.Dataset:
-        captured["files_hpl"] = files_hpl
+        captured["file_contents"] = file_contents
         captured["conf_dict"] = conf_dict
         captured["date_chosen"] = date_chosen
         captured["time_chosen"] = time_chosen
@@ -161,7 +169,7 @@ def test_read_windcube_scan_files_uses_explicit_reader_settings(
         fake_filelist_to_hpl_files,
     )
     monkeypatch.setattr(
-        "lidar_wind_toolbox.processing.hpl_files.combine_lvl1_to_ds",
+        "lidar_wind_toolbox.processing.combine_lvl1_to_ds",
         fake_combine,
     )
 
@@ -178,7 +186,6 @@ def test_read_windcube_scan_files_uses_explicit_reader_settings(
     assert result is expected_dataset
     assert captured["files"] == files
     assert captured["inst_type"] == "windcube"
-    assert captured["files_hpl"].__class__ is DummyFiles
     assert captured["time_chosen"] is None
 
     conf_dict = captured["conf_dict"]
