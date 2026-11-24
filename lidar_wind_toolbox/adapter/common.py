@@ -12,35 +12,35 @@ import xarray as xr
 class NormalizedRadialData:
     """Instrument-independent values required by the normalized Level-1 schema."""
 
-    dv: np.ndarray
-    errdv: np.ndarray
+    radial_velocity: np.ndarray
+    radial_velocity_error: np.ndarray
     intensity: np.ndarray
     beta: np.ndarray
-    delv: np.ndarray
-    azi: np.ndarray
+    spectral_width: np.ndarray
+    azimuth: np.ndarray
     zenith: np.ndarray
     time: np.ndarray
     time_units: str
     range: np.ndarray
-    range_bnds: np.ndarray
+    range_bounds: np.ndarray
     lat: np.float32
     lon: np.float32
-    zsl: np.float32
-    wl: np.float32
-    pd: np.float32
-    nfft: np.float32
-    nrg: np.float32
-    lrg: np.float32
-    nsmpl: np.float32
-    prf: np.float32
-    npls: np.float32
+    altitude: np.float32
+    wavelength: np.float32
+    pulse_duration: np.float32
+    number_of_fft_points: np.float32
+    number_of_range_gates: np.float32
+    range_gate_length: np.float32
+    points_per_range_gate: np.float32
+    pulse_repetition_frequency: np.float32
+    pulses_per_direction: np.float32
     focus: np.float32
-    resv: np.float32
-    nqf: np.float32
-    nqv: np.float32
-    smplf: np.float32
-    resf: np.float32
-    tgint: np.float32
+    velocity_resolution: np.float32
+    nyquist_frequency: np.float32
+    nyquist_velocity: np.float32
+    sampling_frequency: np.float32
+    frequency_resolution: np.float32
+    gate_time_interval: np.float32
 
 
 def build_normalized_radial_dataset(data: NormalizedRadialData) -> xr.Dataset:
@@ -122,32 +122,32 @@ def build_normalized_radial_dataset(data: NormalizedRadialData) -> xr.Dataset:
 
     dataset = xr.Dataset(
         {
-            "dv": (["time", "range"], data.dv, radial_attrs),
-            "errdv": (["time", "range"], data.errdv, error_attrs),
+            "dv": (["time", "range"], data.radial_velocity, radial_attrs),
+            "errdv": (["time", "range"], data.radial_velocity_error, error_attrs),
             "intensity": (["time", "range"], data.intensity, intensity_attrs),
             "beta": (["time", "range"], data.beta, beta_attrs),
-            "delv": (["time", "range"], data.delv, spectral_attrs),
-            "azi": (["time"], data.azi, azi_attrs),
+            "delv": (["time", "range"], data.spectral_width, spectral_attrs),
+            "azi": (["time"], data.azimuth, azi_attrs),
             "zenith": (["time"], data.zenith, zenith_attrs),
             "lat": ([], data.lat, scalar_attrs["lat"]),
             "lon": ([], data.lon, scalar_attrs["lon"]),
-            "zsl": ([], data.zsl, scalar_attrs["zsl"]),
-            "wl": ([], data.wl, scalar_attrs["wl"]),
-            "pd": ([], data.pd, scalar_attrs["pd"]),
-            "nfft": ([], data.nfft, scalar_attrs["nfft"]),
-            "nrg": ([], data.nrg, scalar_attrs["nrg"]),
-            "lrg": ([], data.lrg, scalar_attrs["lrg"]),
-            "nsmpl": ([], data.nsmpl, scalar_attrs["nsmpl"]),
-            "prf": ([], data.prf, scalar_attrs["prf"]),
-            "npls": ([], data.npls, scalar_attrs["npls"]),
+            "zsl": ([], data.altitude, scalar_attrs["zsl"]),
+            "wl": ([], data.wavelength, scalar_attrs["wl"]),
+            "pd": ([], data.pulse_duration, scalar_attrs["pd"]),
+            "nfft": ([], data.number_of_fft_points, scalar_attrs["nfft"]),
+            "nrg": ([], data.number_of_range_gates, scalar_attrs["nrg"]),
+            "lrg": ([], data.range_gate_length, scalar_attrs["lrg"]),
+            "nsmpl": ([], data.points_per_range_gate, scalar_attrs["nsmpl"]),
+            "prf": ([], data.pulse_repetition_frequency, scalar_attrs["prf"]),
+            "npls": ([], data.pulses_per_direction, scalar_attrs["npls"]),
             "focus": ([], data.focus, scalar_attrs["focus"]),
-            "resv": ([], data.resv, scalar_attrs["resv"]),
-            "nqf": ([], data.nqf, scalar_attrs["nqf"]),
-            "nqv": ([], data.nqv, scalar_attrs["nqv"]),
-            "smplf": ([], data.smplf, scalar_attrs["smplf"]),
-            "resf": ([], data.resf, scalar_attrs["resf"]),
-            "tgint": ([], data.tgint, scalar_attrs["tgint"]),
-            "range_bnds": (["range", "nv"], data.range_bnds, {"units": "m", "_FillValue": -999.0}),
+            "resv": ([], data.velocity_resolution, scalar_attrs["resv"]),
+            "nqf": ([], data.nyquist_frequency, scalar_attrs["nqf"]),
+            "nqv": ([], data.nyquist_velocity, scalar_attrs["nqv"]),
+            "smplf": ([], data.sampling_frequency, scalar_attrs["smplf"]),
+            "resf": ([], data.frequency_resolution, scalar_attrs["resf"]),
+            "tgint": ([], data.gate_time_interval, scalar_attrs["tgint"]),
+            "range_bnds": (["range", "nv"], data.range_bounds, {"units": "m", "_FillValue": -999.0}),
         },
         coords={
             "time": (["time"], data.time, {"units": data.time_units, "standard_name": "time", "long_name": "Time", "calendar": "gregorian", "_CoordinateAxisType": "time"}),
