@@ -149,10 +149,16 @@ def read_halo(file_content: bytes, confDict: dict[str, str]) -> xr.Dataset:
     ]
 
     # calculate range in meters from range gate number, gate length
-    range_mid = hpl_files.range_calc(mdata["range gate"][0, :], confDict)
-    dr = (np.float32(confDict["PULS_DURATION"]) * SPEED_OF_LIGHT / 4).astype("f4")
-    range_bnds = np.array([range_mid - dr, range_mid + dr]).T
-    tgint = (2 * np.array(confDict["RANGE_GATE_LENGTH"], dtype="f4") / SPEED_OF_LIGHT).astype("f4")
+    range_values = hpl_files.range_calc(mdata["range gate"][0, :], confDict)
+    range_gate_half_width = (
+        np.float32(confDict["PULS_DURATION"]) * SPEED_OF_LIGHT / 4
+    ).astype("f4")
+    range_bounds = np.array(
+        [range_values - range_gate_half_width, range_values + range_gate_half_width]
+    ).T
+    gate_time_interval = (
+        2 * np.array(confDict["RANGE_GATE_LENGTH"], dtype="f4") / SPEED_OF_LIGHT
+    ).astype("f4")
 
     SNR_tmp = np.copy(mdata["snrp1"]) - 1
     SNR_tmp[abs(SNR_tmp) <= np.finfo(np.float32).eps] = np.finfo(np.float32).eps
@@ -163,9 +169,33 @@ def read_halo(file_content: bytes, confDict: dict[str, str]) -> xr.Dataset:
         SNR_dB,
         int(mheader["Gate length (pts)"]),
         int(confDict["PULSES_PER_DIRECTION"]),
-        float(mheader["Gate length (pts)"]) / tgint / 2 * float(confDict["SYSTEM_WAVELENGTH"]),
+        float(mheader["Gate length (pts)"])
+        / gate_time_interval
+        / 2
+        * float(confDict["SYSTEM_WAVELENGTH"]),
         1.316,
     )
+
+    gate_points = np.float32(mheader["Gate length (pts)"])
+    number_of_gates = np.float32(mheader["Number of gates"])
+    range_gate_length = np.float32(mheader["Range gate length (m)"])
+    pulse_repetition_frequency = np.float32(confDict["PULS_REPETITION_FREQ"])
+    pulses_per_direction = np.float32(confDict["PULSES_PER_DIRECTION"])
+    focus_range = np.float32(mheader["Focus range"])
+    velocity_resolution = np.float32(mheader["Resolution (m/s)"])
+    nyquist_frequency = (gate_points / gate_time_interval / 2).astype("f4")
+    nyquist_velocity = (
+        gate_points
+        / gate_time_interval
+        / 2
+        * np.float32(confDict["SYSTEM_WAVELENGTH"])
+        / 2
+    ).astype("f4")
+    sampling_frequency = gate_points / gate_time_interval
+    frequency_resolution = (
+        gate_points / gate_time_interval / float(confDict["FFT_POINTS"])
+    ).astype("f4")
+    zenith_values = 90 - mbeam["elevation"]
 
     return build_normalized_radial_dataset(
         NormalizedRadialData(
@@ -175,38 +205,28 @@ def read_halo(file_content: bytes, confDict: dict[str, str]) -> xr.Dataset:
             beta=mdata["beta"],
             delv=mdata["dels"],
             azi=mbeam["azimuth"],
-            zenith=90 - mbeam["elevation"],
+            zenith=zenith_values,
             time=np.asarray(time_ds),
             time_units="seconds since 1970-01-01 00:00:00",
-            range=range_mid.astype("f4"),
-            range_bnds=range_bnds.astype("f4"),
+            range=range_values.astype("f4"),
+            range_bnds=range_bounds.astype("f4"),
             lat=np.float32(confDict["SYSTEM_LATITUDE"]),
             lon=np.float32(confDict["SYSTEM_LONGITUDE"]),
             zsl=np.float32(confDict["SYSTEM_ALTITUDE"]),
             wl=np.float32(confDict["SYSTEM_WAVELENGTH"]),
             pd=np.float32(confDict["PULS_DURATION"]),
             nfft=np.float32(confDict["FFT_POINTS"]),
-            nrg=np.float32(mheader["Number of gates"]),
-            lrg=np.float32(mheader["Range gate length (m)"]),
-            nsmpl=np.float32(mheader["Gate length (pts)"]),
-            prf=np.float32(confDict["PULS_REPETITION_FREQ"]),
-            npls=np.float32(confDict["PULSES_PER_DIRECTION"]),
-            focus=np.float32(mheader["Focus range"]),
-            resv=np.float32(mheader["Resolution (m/s)"]),
-            nqf=(np.float32(mheader["Gate length (pts)"]) / tgint / 2).astype("f4"),
-            nqv=(
-                np.float32(mheader["Gate length (pts)"])
-                / tgint
-                / 2
-                * np.float32(confDict["SYSTEM_WAVELENGTH"])
-                / 2
-            ).astype("f4"),
-            smplf=np.float32(mheader["Gate length (pts)"]) / tgint,
-            resf=(
-                np.float32(mheader["Gate length (pts)"])
-                / tgint
-                / float(confDict["FFT_POINTS"])
-            ).astype("f4"),
-            tgint=tgint,
+            nrg=number_of_gates,
+            lrg=range_gate_length,
+            nsmpl=gate_points,
+            prf=pulse_repetition_frequency,
+            npls=pulses_per_direction,
+            focus=focus_range,
+            resv=velocity_resolution,
+            nqf=nyquist_frequency,
+            nqv=nyquist_velocity,
+            smplf=sampling_frequency,
+            resf=frequency_resolution,
+            tgint=gate_time_interval,
         )
     )
