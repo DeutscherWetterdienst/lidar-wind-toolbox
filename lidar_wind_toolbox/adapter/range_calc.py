@@ -1,4 +1,7 @@
-def range_calc(rg_vec, confDict: dict[str, str]):
+from typing import Any
+
+
+def range_calc(rg_vec: Any, confDict: dict[str, str]) -> Any:
     """Calculate range bounds, also accounting for overlapping gates. If your hpl-files contain overlapping gates please add the "OVERLAPPING_GATES" argument to the configuration file."""
     if "OVERLAPPING_GATES" in confDict:
         r = lambda x, idx: (
